@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xdat:bundle ID="" xmlns:arc="http://nrg.wustl.edu/arc" xmlns:cat="http://nrg.wustl.edu/catalog" xmlns:pipe="http://nrg.wustl.edu/pipe" xmlns:prov="http://www.nbirn.net/prov" xmlns:scr="http://nrg.wustl.edu/scr" xmlns:val="http://nrg.wustl.edu/val" xmlns:wrk="http://nrg.wustl.edu/workflow" xmlns:xdat="http://nrg.wustl.edu/security" xmlns:xnat="http://nrg.wustl.edu/xnat" xmlns:xnat_a="http://nrg.wustl.edu/xnat_assessments" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <xdat:root_element_name>xnat:ctScanData</xdat:root_element_name>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>SUBJECT_ID</xdat:field_ID>
+        <xdat:sequence>1</xdat:sequence>
+        <xdat:type>string</xdat:type>
+        <xdat:header>Subject</xdat:header>
+    </xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>SESSION_LABEL</xdat:field_ID>
+        <xdat:sequence>2</xdat:sequence>
+        <xdat:type>UNKNOWN</xdat:type>
+        <xdat:header>Session Label</xdat:header>
+    </xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>ID</xdat:field_ID>
+        <xdat:sequence>3</xdat:sequence>
+        <xdat:type>string</xdat:type>
+        <xdat:header>ID</xdat:header>
+    </xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>NOTE</xdat:field_ID>
+        <xdat:sequence>4</xdat:sequence>
+        <xdat:type>string</xdat:type>
+        <xdat:header>note</xdat:header>
+    </xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>PARAMETERS_ORIENTATION</xdat:field_ID>
+        <xdat:sequence>5</xdat:sequence>
+        <xdat:type>string</xdat:type>
+        <xdat:header>orientation</xdat:header></xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>FRAMES</xdat:field_ID>
+        <xdat:sequence>6</xdat:sequence>
+        <xdat:type>integer</xdat:type>
+        <xdat:header>frames</xdat:header></xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>BODYPARTEXAMINED</xdat:field_ID>
+        <xdat:sequence>7</xdat:sequence>
+        <xdat:type>string</xdat:type>
+        <xdat:header>bodyPartExamined</xdat:header></xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>PARAMETERS_IMAGETYPE</xdat:field_ID>
+        <xdat:sequence>8</xdat:sequence>
+        <xdat:type>string</xdat:type>
+        <xdat:header>imageType</xdat:header></xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>UID</xdat:field_ID>
+        <xdat:sequence>9</xdat:sequence>
+        <xdat:type>string</xdat:type>
+        <xdat:header>UID</xdat:header></xdat:search_field>
+    <xdat:search_field>
+        <xdat:element_name>xnat:ctScanData</xdat:element_name>
+        <xdat:field_ID>SERIES_DESCRIPTION</xdat:field_ID>
+        <xdat:sequence>10</xdat:sequence>
+        <xdat:type>string</xdat:type>
+        <xdat:header>series_description</xdat:header>
+</xdat:search_field>
+    <xdat:search_where method="AND">
+        <xdat:child_set method="OR">
+            <xdat:criteria override_value_formatting="0">
+                <xdat:schema_field>xnat:ctScanData.PROJECT</xdat:schema_field>
+                <xdat:comparison_type> LIKE </xdat:comparison_type>
+                <xdat:value>%MSKGSTT%</xdat:value>
+            </xdat:criteria>
+        </xdat:child_set>
+    </xdat:search_where>
+</xdat:bundle>
