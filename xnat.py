@@ -13,7 +13,7 @@ class SimpleXNAT:
     """
     Simple object to retrieve and upload information to/from XNAT server
     """
-    def __init__(self, server, user=None, pwd=None):
+    def __init__(self, server, user=None, pwd=None, xml_query_file=None):
         """
         Required input is the server URL and optionally username and password.
         The local netrc file is used if no credentials are provided
@@ -33,27 +33,33 @@ class SimpleXNAT:
         self._session = requests.Session()
         self._session.auth = (user, pwd)
         # Download the list of scan from XNAT
-        self._update_scan_list()
+        self._update_scan_list(xml_query_file)
 
     def __enter__(self):
         return self
 
-    def _update_scan_list(self):
+    def _update_scan_list(self, filepath=None):
         """
         Performs an xnat search via the rest to retrive the list of CT scans
         in MSKGSTT project. This is encoded in the xnat_scan_query.xml file.
         The list in stored as a pandas dataframe
         """
-        #TODO Need to ensure path works from anywhere
-        xml_query_file = 'xnat_scan_query.xml'
+        # TODO Need to ensure path works from anywhere
+        # Slicer changes working directory so relative paths fail
+        if filepath is None or filepath == "":
+            xml_query_file = os.path.join(os.path.curdir, 'xnat_scan_query.xml')
+        else:
+            xml_query_file = filepath
+
         url = '{}/data/search?format=csv'.format(self._server)
         raw_data = self._session.post(url,
                                       data=open(xml_query_file, 'rb')).text
+        # print(raw_data)
         self._scans = pd.read_csv(StringIO(raw_data))
 
     def filter_scan(self, **kargs):
         """
-        Place holder to perform filtering on the scan dataframe
+        Placeholder to perform filtering on the scan dataframe
         :param args: header and filter operation
         """
         headers = ['subject_id',
@@ -80,10 +86,10 @@ class SimpleXNAT:
         :return: path of the DICOM folder
         """
         # Set the filename of the zip file to download
-        filename = '{}-{}'.format(
-            self._current_scan['session_label'].values[0],
-            self._current_scan['id'].values[0]
-        )
+        # filename = '{}-{}'.format(
+        #     self._current_scan['session_label'].values[0],
+        #     self._current_scan['id'].values[0]
+        # )
         filename = self._current_scan_folder + '.zip'
         # Rest request to download the data
         url = '{}/data/projects/{}/subjects/{}/experiments/{}/scans/{}'.format(
