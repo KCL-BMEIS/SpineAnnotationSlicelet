@@ -1,5 +1,6 @@
 import logging
 import os
+import csv
 
 import json
 import vtk
@@ -26,7 +27,7 @@ class VertebraLocator(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "Vertebra Locator"
-        self.parent.categories = ["Examples"]  # TODO: set categories (folders where the module shows up in the module selector)
+        self.parent.categories = ["Annotations"]
         self.parent.dependencies = ["Markups", "DICOM"]
         self.parent.contributors = ["David Drobny (KCL), Marc Modat (KCL)"]
         self.parent.helpText = """
@@ -36,10 +37,9 @@ class VertebraLocator(ScriptedLoadableModule):
         """
         # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = """
-        This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc., Andras Lasso, PerkLab,
-        and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR013218-12S1.
+        This file was originally developed by David Drobny, KCL, and Marc Modat, KCL and was 
+        partially funded by <grant>.
         """
-
         # Additional initialization step after application startup is complete
         # slicer.app.connect("startupCompleted()", registerSampleData)
 
@@ -116,6 +116,7 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._updatingGUIFromParameterNode = False
         self._xnat = None
         self._currentImage = None
+        self._currentID = None
         self._folder = None
 
     def setup(self):
@@ -227,6 +228,7 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # hide more elements of the controlpoint sub-widget
         c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
+        c.checked = True
         c.findChild("QLabel", "label_3").hide()
         c.findChild("QPushButton", "listLockedUnlockedPushButton").hide()
         c.findChild("QPushButton", "fixedNumberOfControlPointsPushButton").hide()
@@ -303,8 +305,11 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Called each time the user opens a different module.
         """
-        # Do not react to parameter node changes (GUI wlil be updated when the user enters into the module)
-        self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self.updateGUIFromParameterNode)
+        # Do not react to parameter node changes (GUI will be updated when the
+        # user enters into the module)
+        self.removeObserver(self._parameterNode,
+                            vtk.vtkCommand.ModifiedEvent,
+                            self.updateGUIFromParameterNode)
 
     def onSceneStartClose(self, caller, event):
         """
@@ -317,7 +322,8 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Called just after the scene is closed.
         """
-        # If this module is shown while the scene is closed then recreate a new parameter node immediately
+        # If this module is shown while the scene is closed then recreate a new
+        # parameter node immediately
         if self.parent.isEntered:
             self.initializeParameterNode()
 
@@ -336,7 +342,6 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         Observation is needed because when the parameter node is changed then
         the GUI must be updated immediately.
         """
-
         if inputParameterNode:
             self.logic.setDefaultParameters(inputParameterNode)
 
@@ -500,17 +505,34 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         with slicer.util.tryWithErrorDisplay("Failed to save annotations to XNAT.",
                                              waitCursor=True):
 
-            path = os.path.join(self._folder, self._currentID+".json")
-            slicer.util.saveNode(slicer.util.getNode("C"), path)
-
-            print(path)
-
-            self._xnat.upload_annotations(path)
+            # # json file
+            # path = os.path.join(self._folder, self._currentID+".json")
+            # slicer.util.saveNode(slicer.util.getNode("C"), path)
+            # self._xnat.upload_annotations(path)
 
             # alternatively, save markups as csv file
-            # markupsLogic = slicer.modules.markups.logic()
-            # markupsLogic.ExportControlPointsToCSV(slicer.util.getNode("C"),
-            #                                       "/path/to/MyControlPoints.csv")
+            markupsLogic = slicer.modules.markups.logic()
+
+            combined_csv = []
+            for markup in ["C", "T", "L", "S"]:
+                path = os.path.join(self._folder, self._currentID+"_"+markup+".csv")
+                markupsLogic.ExportControlPointsToCSV(slicer.util.getNode(markup), path)
+
+                with open(path, newline='') as file:
+                    reader = csv.reader(file)
+                    for i, row in enumerate(reader):
+                        print(i)
+                        if not markup == "C" and i==0:
+                            continue
+                        print(row)
+                        combined_csv.append(row)
+
+            path = os.path.join(self._folder, self._currentID + ".csv")
+            with open(path, 'w', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerows(combined_csv)
+
+            print(combined_csv)
             self._next()
             self.onInitializeButton()
 
