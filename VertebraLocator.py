@@ -27,7 +27,7 @@ class VertebraLocator(ScriptedLoadableModule):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "Vertebra Locator"
         self.parent.categories = ["Examples"]  # TODO: set categories (folders where the module shows up in the module selector)
-        self.parent.dependencies = ["Markups"]
+        self.parent.dependencies = ["Markups", "DICOM"]
         self.parent.contributors = ["David Drobny (KCL), Marc Modat (KCL)"]
         self.parent.helpText = """
         This module is used to facilitate vertebra localisation and annotation on images imported 
@@ -115,6 +115,8 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode = None
         self._updatingGUIFromParameterNode = False
         self._xnat = None
+        self._currentImage = None
+        self._folder = None
 
     def setup(self):
         """
@@ -127,8 +129,15 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         uiWidget = slicer.util.loadUI(self.resourcePath('UI/VertebraLocator.ui'))
         self.layout.addWidget(uiWidget)
 
-        # widget2 = slicer.util.loadUI()
-        # self.layout.addWidget(uiWidget)
+        # Info on available MarkupWidgets:
+        # qMRMLMarkupsDisplayNodeWidget = Display box
+        # qMRMLMarkupsInteractionHandleWidget = Display - Interaction Handle
+        # qMRMLMarkupsToolBar = markup node selector dropdown
+        # qSlicerMarkupsPlaceWidget = buttons for placement mode, delete etc.
+        # qSlicerSimpleMarkupsWidget = label list and control buttons
+
+        # widget = slicer.qSlicerSimpleMarkupsWidget()
+        # self.layout.addWidget(widget)
 
         # w = slicer.qSlicerMarkupsPlaceWidget()
         # w.setMRMLScene(slicer.mrmlScene)
@@ -138,13 +147,6 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # w.buttonsVisible = False
         # w.placeButton().show()
         # self.layout.addWidget(w)
-
-        # Info on available MarkupWidgets:
-        # qMRMLMarkupsDisplayNodeWidget = Display box
-        # qMRMLMarkupsInteractionHandleWidget = Display - Interaction Handle
-        # qMRMLMarkupsToolBar = markup node selector dropdown
-        # qSlicerMarkupsPlaceWidget = buttons for placement mode, delete etc.
-        # qSlicerSimpleMarkupsWidget = label list and control buttons
 
         # # include markups module as widget - how to access/modify this??
         # # Different object than normal markups module
@@ -209,7 +211,46 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # in batch mode, without a graphical user interface.
         self.logic = VertebraLocatorLogic()
 
-        # Connections
+        markupsLogic = slicer.modules.markups.logic()
+        # activate persistent place mode for control points
+        interactionNode = slicer.util.getNodesByClass("vtkMRMLInteractionNode")
+        markupsLogic.StartPlaceMode(interactionNode)
+
+        # hide various UI elements of Markups module
+        m = slicer.util.getModuleGui("Markups")
+        # run in slicer prompt to see all available children:
+        # getModuleGui("Markups").children()
+        m.findChild("QGroupBox", "createMarkupsGroupBox").hide()
+        m.findChild("qMRMLCollapsibleButton", "displayCollapsibleButton").hide()
+        m.findChild("qMRMLCollapsibleButton", "exportImportCollapsibleButton").hide()
+        m.findChild("ctkCollapsibleButton", "measurementsCollapsibleButton").hide()
+
+        # hide more elements of the controlpoint sub-widget
+        c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
+        c.findChild("QLabel", "label_3").hide()
+        c.findChild("QPushButton", "listLockedUnlockedPushButton").hide()
+        c.findChild("QPushButton", "fixedNumberOfControlPointsPushButton").hide()
+        c.findChild("ctkMenuButton", "visibilityAllControlPointsInListMenuButton").hide()
+        c.findChild("ctkMenuButton", "selectedAllControlPointsInListMenuButton").hide()
+        c.findChild("ctkMenuButton", "lockAllControlPointsInListMenuButton").hide()
+        c.findChild("QPushButton", "missingControlPointPushButton").hide()
+        c.findChild("QPushButton", "unsetControlPointPushButton").hide()
+        c.findChild("QPushButton", "deleteAllControlPointsInListPushButton").hide()
+        c.findChild("QToolButton", "CutControlPointsToolButton").hide()
+        c.findChild("QToolButton", "CopyControlPointsToolButton").hide()
+        c.findChild("QToolButton", "PasteControlPointsToolButton").hide()
+        c.findChild("QLabel", "label_coords").hide()
+        c.findChild("QComboBox", "coordinatesComboBox").hide()
+        c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
+
+        # try and maximise control point table height
+        c.findChild("QTableWidget", "activeMarkupTableWidget").setFixedHeight(470)
+        # c.findChild("QTableWidget", "activeMarkupTableWidget").setSizePolicy(
+        #     qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
+
+        # ########### #
+        # Connections #
+        # ########### #
 
         # These connections ensure that we update parameter node when scene is closed
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
@@ -232,12 +273,18 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                                      self.updateParameterNodeFromGUI)
 
         # Buttons
-        self.ui.buttonConfirm.connect('clicked(bool)', self.onConfirmButton)
-        self.ui.buttonInitialize.connect('clicked(bool)', self.onInitializeButton)
         self.ui.buttonLoad.connect('clicked(bool)', self.onLoadButton)
+        self.ui.buttonInitialize.connect('clicked(bool)', self.onInitializeButton)
+        self.ui.buttonConfirm.connect('clicked(bool)', self.onConfirmButton)
+        self.ui.buttonCancel.connect('clicked(bool)', self.onCancelButton)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
+
+        # hide default Slicer UI elements
+        slicer.util.setModuleHelpSectionVisible(False)
+        slicer.util.setDataProbeVisible(False)
+        slicer.util.setApplicationLogoVisible(False)
 
     def cleanup(self):
         """
@@ -365,16 +412,7 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         with slicer.util.tryWithErrorDisplay("Failed to initialise Markups.",
                                              waitCursor=True):
 
-            # hide default Slicer UI elements
-            slicer.util.setModuleHelpSectionVisible(False)
-            slicer.util.setDataProbeVisible(False)
-            slicer.util.setApplicationLogoVisible(False)
-
             defaultDescription = "none"
-
-            # delete markup lists if they already exist
-            # create markup lists, one each for C, T, L, S vertebrae
-            # populate markup lists with markup control points for each vertebra
             markupsLogic = slicer.modules.markups.logic()
 
             for markup in ["C", "T", "L", "S"]:
@@ -420,42 +458,6 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 slicer.util.getNode(idS).SetNthControlPointDescription(i, defaultDescription)
             slicer.util.getNode(idS).SetDescription("Sacrum")
 
-            # activate persistent place mode for control points
-            interactionNode = slicer.util.getNodesByClass("vtkMRMLInteractionNode")
-            markupsLogic.StartPlaceMode(interactionNode)
-
-            # hide various UI elements of Markups module
-            m = slicer.util.getModuleGui("Markups")
-            # run in slicer prompt to see all available children:
-            # getModuleGui("Markups").children()
-            m.findChild("QGroupBox", "createMarkupsGroupBox").hide()
-            m.findChild("qMRMLCollapsibleButton", "displayCollapsibleButton").hide()
-            m.findChild("qMRMLCollapsibleButton", "exportImportCollapsibleButton").hide()
-            m.findChild("ctkCollapsibleButton", "measurementsCollapsibleButton").hide()
-
-            # hide more elements of the controlpoint sub-widget
-            c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
-            c.findChild("QLabel", "label_3").hide()
-            c.findChild("QPushButton", "listLockedUnlockedPushButton").hide()
-            c.findChild("QPushButton", "fixedNumberOfControlPointsPushButton").hide()
-            c.findChild("ctkMenuButton", "visibilityAllControlPointsInListMenuButton").hide()
-            c.findChild("ctkMenuButton", "selectedAllControlPointsInListMenuButton").hide()
-            c.findChild("ctkMenuButton", "lockAllControlPointsInListMenuButton").hide()
-            c.findChild("QPushButton", "missingControlPointPushButton").hide()
-            c.findChild("QPushButton", "unsetControlPointPushButton").hide()
-            c.findChild("QPushButton", "deleteAllControlPointsInListPushButton").hide()
-            c.findChild("QToolButton", "CutControlPointsToolButton").hide()
-            c.findChild("QToolButton", "CopyControlPointsToolButton").hide()
-            c.findChild("QToolButton", "PasteControlPointsToolButton").hide()
-            c.findChild("QLabel", "label_coords").hide()
-            c.findChild("QComboBox", "coordinatesComboBox").hide()
-            c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
-
-            # try and maximise control point table height
-            c.findChild("QTableWidget", "activeMarkupTableWidget").setFixedHeight(470)
-            # c.findChild("QTableWidget", "activeMarkupTableWidget").setSizePolicy(
-            #     qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
-
             # ToDo:
             # Node List: SetDescription seems bugged and resets
             # include this module/widget in Markups module
@@ -472,27 +474,23 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Establish the connection to an XNAT server with the provided user credentials.
         """
-        # with slicer.util.tryWithErrorDisplay("Failed to connect to XNAT.",
-        #                                      waitCursor=True):
-        # create xnat object
-        if self._xnat is None:
-            self._xnat = SimpleXNAT(self.ui.serverLineEdit.text,
-                                   user=self.ui.userLineEdit.text,
-                                   pwd=self.ui.passwordLineEdit.text,
-                                   xml_query_file=self.ui.xmlLineEdit.text)
-            iter(self._xnat)
-        next(self._xnat)
-        dicomFolder = self._xnat.get_scan_dicom_folder()
-        print(dicomFolder)
-        DICOMUtils.importDicom(dicomFolder)
+        with slicer.util.tryWithErrorDisplay("Failed to connect to XNAT.",
+                                             waitCursor=True):
+            if self._xnat is None:
+                # create xnat object
+                self._xnat = SimpleXNAT(self.ui.serverLineEdit.text,
+                                        user=self.ui.userLineEdit.text,
+                                        pwd=self.ui.passwordLineEdit.text,
+                                        xml_query_file=self.ui.xmlLineEdit.text)
+                # initialize iterator
+                iter(self._xnat)
 
-        # for img in self._xnat:
-        #     print(img)
-        #     dicomFolder = self._xnat.get_scan_dicom_folder()
-        #     # load folder into dicom loader
-        #     print(dicomFolder)
-        #     break
-
+                # instantiate the DICOM browser
+                slicer.util.selectModule("DICOM")
+                slicer.util.selectModule("VertebraLocator")
+            # load first image
+            self._next()
+            self.onInitializeButton()
 
     def onConfirmButton(self):
         """
@@ -501,37 +499,56 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         with slicer.util.tryWithErrorDisplay("Failed to save annotations to XNAT.",
                                              waitCursor=True):
-            # save markup lists
-            # send markups to XNAT
-            # identify and load next image from XNAT
-            # (re-) initialise markups
-            markupsLogic = slicer.modules.markups.logic()
 
-            markupsLogic.ExportControlPointsToCSV(markupsNode, "/path/to/MyControlPoints.csv")
-            return
+            path = os.path.join(self._folder, self._currentID+".json")
+            slicer.util.saveNode(slicer.util.getNode("C"), path)
 
-    # demo
-    def onApplyButton(self):
+            print(path)
+
+            self._xnat.upload_annotations(path)
+
+            # alternatively, save markups as csv file
+            # markupsLogic = slicer.modules.markups.logic()
+            # markupsLogic.ExportControlPointsToCSV(slicer.util.getNode("C"),
+            #                                       "/path/to/MyControlPoints.csv")
+            self._next()
+            self.onInitializeButton()
+
+    def onCancelButton(self):
         """
-        Run processing when user clicks "Apply" button.
+        Don't save annotations to XNAT, continue to next image.
         """
-        with slicer.util.tryWithErrorDisplay("Failed to initialise Markups.", waitCursor=True):
+        with slicer.util.tryWithErrorDisplay("Failed to continue.",
+                                             waitCursor=True):
+            # ToDo: desireable to save tag in XNAT, that image was processed
+            #  with no annotation to save
+            self._next()
+            self.onInitializeButton()
 
-            # Compute output
-            self.logic.process(self.ui.inputSelector.currentNode(),
-                               self.ui.outputSelector.currentNode(),
-                               self.ui.imageThresholdSliderWidget.value,
-                               self.ui.invertOutputCheckBox.checked)
+    def _next(self):
+        """
+        Utility function to load and switch to the next image.
+        """
+        subject = next(self._xnat)
+        self._currentID = subject['session_label'].values[0]
+        self._folder = self._xnat.get_scan_dicom_folder()
+        # print(dicomFolder)
 
-            # Compute inverted output (if needed)
-            if self.ui.invertedOutputSelector.currentNode():
-                # If additional output volume is selected then result with
-                # inverted threshold is written there
-                self.logic.process(self.ui.inputSelector.currentNode(),
-                                   self.ui.invertedOutputSelector.currentNode(),
-                                   self.ui.imageThresholdSliderWidget.value,
-                                   not self.ui.invertOutputCheckBox.checked, showResult=False)
+        # delete current image to not litter the viewer
+        if self._currentImage is not None:
+            slicer.mrmlScene.RemoveNode(slicer.util.getNode(self._currentImage))
 
+        with DICOMUtils.TemporaryDICOMDatabase() as db:
+            DICOMUtils.importDicom(self._folder, db)
+            # create loadable volumes from dicom
+            slicer.modules.DICOMWidget.browserWidget.examineForLoading()
+            # load volume
+            patient_name = self._currentID.split("_", 1)[0]
+            loadedNodeIDs = DICOMUtils.loadPatientByName(patient_name)
+            # store reference so volume can be deleted
+            self._currentImage = loadedNodeIDs[0]
+            # update viewers to new volume
+            slicer.util.setSliceViewerLayers(background=self._currentImage)
 
 #
 # VertebraLocatorLogic
