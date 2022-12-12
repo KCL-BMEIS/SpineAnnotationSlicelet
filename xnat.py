@@ -176,12 +176,12 @@ class SimpleXNAT:
         self._current_scan_index += 1
         self._current_scan = self._scans.iloc[[i]]
         # Set the folder required to save data
-        filename = '{}-{}.json'.format(
+        foldername = '{}-{}'.format(
             self._current_scan['session_label'].values[0],
             self._current_scan['id'].values[0]
         )
         self._current_scan_folder = os.path.join(tempfile.gettempdir(),
-                                                 filename)
+                                                 foldername)
         return self._current_scan
 
     def __exit__(self, exc_t, exc_va, exc_bt):
