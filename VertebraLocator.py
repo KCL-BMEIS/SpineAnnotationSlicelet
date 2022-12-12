@@ -1,7 +1,6 @@
 import logging
 import os
 import csv
-
 import json
 import vtk
 
@@ -9,6 +8,7 @@ import slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 from DICOMLib import DICOMUtils
+from copy import deepcopy
 
 # from __main__ import qt
 
@@ -505,34 +505,41 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         with slicer.util.tryWithErrorDisplay("Failed to save annotations to XNAT.",
                                              waitCursor=True):
 
-            # # json file
-            # path = os.path.join(self._folder, self._currentID+".json")
-            # slicer.util.saveNode(slicer.util.getNode("C"), path)
-            # self._xnat.upload_annotations(path)
 
-            # alternatively, save markups as csv file
-            markupsLogic = slicer.modules.markups.logic()
-
-            combined_csv = []
+            # JSON version
+            mergedFile = os.path.join(self._folder, self._currentID + ".json")
+            files = []
             for markup in ["C", "T", "L", "S"]:
-                path = os.path.join(self._folder, self._currentID+"_"+markup+".csv")
-                markupsLogic.ExportControlPointsToCSV(slicer.util.getNode(markup), path)
+                path = os.path.join(self._folder, self._currentID+"_"+markup+".json")
+                files.append(path)
+                slicer.util.saveNode(slicer.util.getNode(markup), path)
+            self.logic.mergeMarkupJSON(files, mergedFile)
 
-                with open(path, newline='') as file:
-                    reader = csv.reader(file)
-                    for i, row in enumerate(reader):
-                        print(i)
-                        if not markup == "C" and i==0:
-                            continue
-                        print(row)
-                        combined_csv.append(row)
+            # # CSV version
+            # mergedFile = os.path.join(self._folder, self._currentID + ".csv")
+            # markupsLogic = slicer.modules.markups.logic()
+            # combined_csv = []
+            # for markup in ["C", "T", "L", "S"]:
+            #     path = os.path.join(self._folder, self._currentID+"_"+markup+".csv")
+            #     markupsLogic.ExportControlPointsToCSV(slicer.util.getNode(markup), path)
+            #
+            #     with open(path, newline='') as file:
+            #         reader = csv.reader(file)
+            #         for i, row in enumerate(reader):
+            #             print(i)
+            #             if not markup == "C" and i==0:
+            #                 continue
+            #             print(row)
+            #             combined_csv.append(row)
+            #
+            # with open(mergedFile, 'w', newline='') as file:
+            #     writer = csv.writer(file)
+            #     writer.writerows(combined_csv)
+            # print(combined_csv)
 
-            path = os.path.join(self._folder, self._currentID + ".csv")
-            with open(path, 'w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerows(combined_csv)
+            # upload merged annotations
+            self._xnat.upload_annotations(mergedFile)
 
-            print(combined_csv)
             self._next()
             self.onInitializeButton()
 
@@ -595,42 +602,92 @@ class VertebraLocatorLogic(ScriptedLoadableModuleLogic):
         """
         Initialize parameter node with default settings.
         """
-        if not parameterNode.GetParameter("Threshold"):
-            parameterNode.SetParameter("Threshold", "100.0")
-        if not parameterNode.GetParameter("Invert"):
-            parameterNode.SetParameter("Invert", "false")
+        if not parameterNode.GetParameter("serverLineEdit"):
+            parameterNode.SetParameter("serverLineEdit", "https://")
 
-    def process(self, inputVolume, outputVolume, imageThreshold, invert=False, showResult=True):
+    def mergeMarkupJSON(self, files, mergedFilePath=None):
         """
-        Run the processing algorithm.
+        Merge Markup JSON files provided as a list of paths into a single file.
+        This way, control points of separate lists will be merged into a single
+        list and stay like that when directly loaded into Slicer. For splitting
+        a merged file back into separate lists, see splitMarkupJSON().
         Can be used without GUI widget.
-        :param inputVolume: volume to be thresholded
-        :param outputVolume: thresholding result
-        :param imageThreshold: values above/below this threshold will be set to 0
-        :param invert: if True then values above the threshold will be set to 0, otherwise values below are set to 0
-        :param showResult: show output volume in slice viewers
+        :param files: a list of JSON file paths
+        :param mergedFilePath: file path for the resulting merged JSON file
+
+        :returns: the path to the JSON file containing the merged control points
         """
+        # ToDo: Check for repeating names of control points from different lists
+        # ToDo: Store additional information of the individual JSON files
 
-        if not inputVolume or not outputVolume:
-            raise ValueError("Input or output volume is invalid")
+        allControlPoints = []
+        for file in files:
+            with open(file) as json_file:
+                data = json.load(json_file)
+                if data['markups'][0]['type'] != "Fiducial":
+                    raise ValueError("Input file is not a Fiducial type Markup")
+                for controlPoint in data['markups'][0]['controlPoints']:
+                    allControlPoints.append(controlPoint)
 
-        import time
-        startTime = time.time()
-        logging.info('Processing started')
+        # overwrite control points of last JSON to create merged markup
+        data['markups'][0]['controlPoints'] = allControlPoints
 
-        # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
-        cliParams = {
-            'InputVolume': inputVolume.GetID(),
-            'OutputVolume': outputVolume.GetID(),
-            'ThresholdValue': imageThreshold,
-            'ThresholdType': 'Above' if invert else 'Below'
-        }
-        cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
-        # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-        slicer.mrmlScene.RemoveNode(cliNode)
+        # store merged file
+        if mergedFilePath is None:
+            mergedFilePath = os.path.join(os.path.dirname(files[-1]),
+                                          files[-1].rpartition('_')[0] + '_merged.json')
+        with open(mergedFilePath, 'w') as outfile:
+            json.dump(data, outfile, indent=4)
+        return mergedFilePath
 
-        stopTime = time.time()
-        logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
+    def splitMarkupJSON(self, file, splitFiles=None):
+        """
+        Split a Markup JSON file into multiple files, based on the control
+        point names.
+
+        :param file: path to a file which is to be split
+        :param splitFiles: a list of paths for the resulting split JSON files
+        :return: a list of paths to files with the split annotation files
+        """
+        cControlPoints = []
+        tControlPoints = []
+        lControlPoints = []
+        sControlPoints = []
+        with open(file) as json_file:
+            data = json.load(json_file)
+            if data['markups'][0]['type'] != "Fiducial":
+                raise ValueError("Input file is not a Fiducial type Markup")
+            for controlPoint in data['markups'][0]['controlPoints']:
+                if controlPoint['label'].startswith("C"):
+                    cControlPoints.append(controlPoint)
+                if controlPoint['label'].startswith("T"):
+                    tControlPoints.append(controlPoint)
+                if controlPoint['label'].startswith("L"):
+                    lControlPoints.append(controlPoint)
+                if controlPoint['label'].startswith("S"):
+                    sControlPoints.append(controlPoint)
+        allData = [deepcopy(data) for _ in range(4)]
+        allData[0]['markups'][0]['controlPoints'] = cControlPoints
+        allData[1]['markups'][0]['controlPoints'] = tControlPoints
+        allData[2]['markups'][0]['controlPoints'] = lControlPoints
+        allData[3]['markups'][0]['controlPoints'] = sControlPoints
+
+        # ToDo: recover additional markup data stored in the merged file
+
+        # store split files
+        if splitFiles is None:
+            creatingResultPaths = True
+            splitFiles = []
+            for i, section in enumerate(["C", "T", "L", "S"]):
+                if creatingResultPaths:
+                    path = os.path.join(file.rpartition('.')[0]+'_test_'+section+'.json')
+                    print(path)
+                    splitFiles.append(path)
+
+                with open(splitFiles[i], 'w') as outfile:
+                    json.dump(allData[i], outfile, indent=4)
+
+        return splitFiles
 
 
 #
