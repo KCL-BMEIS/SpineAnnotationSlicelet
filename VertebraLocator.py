@@ -10,7 +10,7 @@ from slicer.util import VTKObservationMixin
 from DICOMLib import DICOMUtils
 from copy import deepcopy
 
-# from __main__ import qt
+from __main__ import qt
 
 from xnat import SimpleXNAT
 
@@ -220,11 +220,12 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # hide various UI elements of Markups module
         m = slicer.util.getModuleGui("Markups")
         # run in slicer prompt to see all available children:
-        # getModuleGui("Markups").children()
+        # slicer.util.getModuleGui("Markups").children()
         m.findChild("QGroupBox", "createMarkupsGroupBox").hide()
         m.findChild("qMRMLCollapsibleButton", "displayCollapsibleButton").hide()
         m.findChild("qMRMLCollapsibleButton", "exportImportCollapsibleButton").hide()
         m.findChild("ctkCollapsibleButton", "measurementsCollapsibleButton").hide()
+        m.findChild("ctkExpandableWidget", "ResizableFrame").hide()
 
         # hide more elements of the controlpoint sub-widget
         c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
@@ -244,11 +245,17 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         c.findChild("QLabel", "label_coords").hide()
         c.findChild("QComboBox", "coordinatesComboBox").hide()
         c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
+        c.findChild("QLabel", "label").hide()
+        c.findChild("QComboBox", "jumpModeComboBox").hide()
+
+        # activate slice intersection for the slice viewer
+        c.findChild("ctkCheckBox", "sliceIntersectionsVisibilityCheckBox").checked = True
 
         # try and maximise control point table height
-        c.findChild("QTableWidget", "activeMarkupTableWidget").setFixedHeight(470)
-        # c.findChild("QTableWidget", "activeMarkupTableWidget").setSizePolicy(
-        #     qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
+        # c.findChild("QTableWidget", "activeMarkupTableWidget").setFixedHeight(670)
+        m.findChild("ctkDynamicSpacer", "DynamicSpacer").hide()
+        c.findChild("QTableWidget", "activeMarkupTableWidget").setSizePolicy(
+            qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
 
         # ########### #
         # Connections #
@@ -417,8 +424,35 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         with slicer.util.tryWithErrorDisplay("Failed to initialise Markups.",
                                              waitCursor=True):
 
-            defaultDescription = "none"
+            defaultDescription = "none"     # default for description field of control points
             markupsLogic = slicer.modules.markups.logic()
+
+            # region labels and default numbers for the spinal regions
+            spineRegions = ["C", "T", "L", "S"]
+            spineRegionSizes = [7, 12, 5, 5]
+
+            # remove previously created markup node, if exists
+            try:
+                slicer.mrmlScene.RemoveNode(slicer.util.getNode("Vertebrae"))
+            except slicer.util.MRMLNodeNotFoundException:
+                pass
+
+            # create new markup node
+            nodeID = markupsLogic.AddNewFiducialNode("Vertebrae")
+            slicer.util.getNode(nodeID).SetControlPointLabelFormat("%N%d")
+            slicer.util.getNode(nodeID).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
+            slicer.util.getNode(nodeID).SetDescription(
+                "List for all vertebra annotations, one controlpoint per center of vertebral body")
+
+            # create one control point per vertebra
+            i = 0   # counter for all set controlpoints/vertebrae
+            for region, n in zip(spineRegions, spineRegionSizes):
+                for j in range(n):
+                    slicer.util.getNode(nodeID).AddControlPoint(0, 0, 0)
+                    slicer.util.getNode(nodeID).UnsetNthControlPointPosition(i)
+                    slicer.util.getNode(nodeID).SetNthControlPointLabel(i, region+str(j+1))
+                    slicer.util.getNode(nodeID).SetNthControlPointDescription(i, defaultDescription)
+                    i += 1
 
             for markup in ["C", "T", "L", "S"]:
                 try:
@@ -426,42 +460,43 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 except slicer.util.MRMLNodeNotFoundException:
                     pass
 
-            idC = markupsLogic.AddNewFiducialNode("C")
-            slicer.util.getNode(idC).SetControlPointLabelFormat("%N%d")
-            # slicer.util.getNode(idC).GetDisplayNode().SetActiveColor()
-            slicer.util.getNode(idC).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
-            for i in range(7):
-                slicer.util.getNode(idC).AddControlPoint(0, 0, 0)
-                slicer.util.getNode(idC).UnsetNthControlPointPosition(i)
-                slicer.util.getNode(idC).SetNthControlPointDescription(i, defaultDescription)
-            slicer.util.getNode(idC).SetDescription("Cervical Spine")
-
-            idT = markupsLogic.AddNewFiducialNode("T")
-            slicer.util.getNode(idT).SetControlPointLabelFormat("%N%d")
-            slicer.util.getNode(idT).GetDisplayNode().SetSelectedColor(1.0, 0.25, 0.5)
-            for i in range(12):
-                slicer.util.getNode(idT).AddControlPoint(0, 0, 0)
-                slicer.util.getNode(idT).UnsetNthControlPointPosition(i)
-                slicer.util.getNode(idT).SetNthControlPointDescription(i, defaultDescription)
-            slicer.util.getNode(idT).SetDescription("Thoracic Spine")
-
-            idL = markupsLogic.AddNewFiducialNode("L")
-            slicer.util.getNode(idL).SetControlPointLabelFormat("%N%d")
-            slicer.util.getNode(idL).GetDisplayNode().SetSelectedColor(0.25, 0.5, 1.0)
-            for i in range(5):
-                slicer.util.getNode(idL).AddControlPoint(0, 0, 0)
-                slicer.util.getNode(idL).UnsetNthControlPointPosition(i)
-                slicer.util.getNode(idL).SetNthControlPointDescription(i, defaultDescription)
-            slicer.util.getNode(idL).SetDescription("Lumbar Spine")
-
-            idS = markupsLogic.AddNewFiducialNode("S")
-            slicer.util.getNode(idS).SetControlPointLabelFormat("%N%d")
-            slicer.util.getNode(idS).GetDisplayNode().SetSelectedColor(0.25, 1.0, 0.5)
-            for i in range(3):
-                slicer.util.getNode(idS).AddControlPoint(0, 0, 0)
-                slicer.util.getNode(idS).UnsetNthControlPointPosition(i)
-                slicer.util.getNode(idS).SetNthControlPointDescription(i, defaultDescription)
-            slicer.util.getNode(idS).SetDescription("Sacrum")
+            # old way of creating one markup node per spinal region
+            # idC = markupsLogic.AddNewFiducialNode("C")
+            # slicer.util.getNode(idC).SetControlPointLabelFormat("%N%d")
+            # # slicer.util.getNode(idC).GetDisplayNode().SetActiveColor()
+            # slicer.util.getNode(idC).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
+            # for i in range(7):
+            #     slicer.util.getNode(idC).AddControlPoint(0, 0, 0)
+            #     slicer.util.getNode(idC).UnsetNthControlPointPosition(i)
+            #     slicer.util.getNode(idC).SetNthControlPointDescription(i, defaultDescription)
+            # slicer.util.getNode(idC).SetDescription("Cervical Spine")
+            #
+            # idT = markupsLogic.AddNewFiducialNode("T")
+            # slicer.util.getNode(idT).SetControlPointLabelFormat("%N%d")
+            # slicer.util.getNode(idT).GetDisplayNode().SetSelectedColor(1.0, 0.25, 0.5)
+            # for i in range(12):
+            #     slicer.util.getNode(idT).AddControlPoint(0, 0, 0)
+            #     slicer.util.getNode(idT).UnsetNthControlPointPosition(i)
+            #     slicer.util.getNode(idT).SetNthControlPointDescription(i, defaultDescription)
+            # slicer.util.getNode(idT).SetDescription("Thoracic Spine")
+            #
+            # idL = markupsLogic.AddNewFiducialNode("L")
+            # slicer.util.getNode(idL).SetControlPointLabelFormat("%N%d")
+            # slicer.util.getNode(idL).GetDisplayNode().SetSelectedColor(0.25, 0.5, 1.0)
+            # for i in range(5):
+            #     slicer.util.getNode(idL).AddControlPoint(0, 0, 0)
+            #     slicer.util.getNode(idL).UnsetNthControlPointPosition(i)
+            #     slicer.util.getNode(idL).SetNthControlPointDescription(i, defaultDescription)
+            # slicer.util.getNode(idL).SetDescription("Lumbar Spine")
+            #
+            # idS = markupsLogic.AddNewFiducialNode("S")
+            # slicer.util.getNode(idS).SetControlPointLabelFormat("%N%d")
+            # slicer.util.getNode(idS).GetDisplayNode().SetSelectedColor(0.25, 1.0, 0.5)
+            # for i in range(3):
+            #     slicer.util.getNode(idS).AddControlPoint(0, 0, 0)
+            #     slicer.util.getNode(idS).UnsetNthControlPointPosition(i)
+            #     slicer.util.getNode(idS).SetNthControlPointDescription(i, defaultDescription)
+            # slicer.util.getNode(idS).SetDescription("Sacrum")
 
             # ToDo:
             # Node List: SetDescription seems bugged and resets
@@ -505,16 +540,16 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         with slicer.util.tryWithErrorDisplay("Failed to save annotations to XNAT.",
                                              waitCursor=True):
 
-
-            # JSON version
-            mergedFile = os.path.join(self._folder, self._currentID + ".json")
-            files = []
-            for markup in ["C", "T", "L", "S"]:
-                path = os.path.join(self._folder, self._currentID+"_"+markup+".json")
-                files.append(path)
-                slicer.util.saveNode(slicer.util.getNode(markup), path)
-            self.logic.mergeMarkupJSON(files, mergedFile)
-
+            # old way of creating one markup node per spinal region
+            # # JSON version
+            # mergedFile = os.path.join(self._folder, self._currentID + ".json")
+            # files = []
+            # for markup in ["C", "T", "L", "S"]:
+            #     path = os.path.join(self._folder, self._currentID+"_"+markup+".json")
+            #     files.append(path)
+            #     slicer.util.saveNode(slicer.util.getNode(markup), path)
+            # self.logic.mergeMarkupJSON(files, mergedFile)
+            #
             # # CSV version
             # mergedFile = os.path.join(self._folder, self._currentID + ".csv")
             # markupsLogic = slicer.modules.markups.logic()
@@ -536,9 +571,13 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             #     writer = csv.writer(file)
             #     writer.writerows(combined_csv)
             # print(combined_csv)
+            #
+            # # upload merged annotations
+            # self._xnat.upload_annotations(mergedFile)
 
-            # upload merged annotations
-            self._xnat.upload_annotations(mergedFile)
+            path = os.path.join(self._folder, self._currentID + ".json")
+            slicer.util.saveNode(slicer.util.getNode("Vertebrae"), path)
+            self._xnat.upload_annotations(path)
 
             self._next()
             self.onInitializeButton()
@@ -582,6 +621,7 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 #
 # VertebraLocatorLogic
 #
+
 
 class VertebraLocatorLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual computation done by your
@@ -643,7 +683,7 @@ class VertebraLocatorLogic(ScriptedLoadableModuleLogic):
     def splitMarkupJSON(self, file, splitFiles=None):
         """
         Split a Markup JSON file into multiple files, based on the control
-        point names.
+        point names. Splitting into C, T, L, and S vertebral regions.
 
         :param file: path to a file which is to be split
         :param splitFiles: a list of paths for the resulting split JSON files
