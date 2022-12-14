@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>492</width>
-    <height>646</height>
+    <height>512</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -109,6 +109,9 @@
      <layout class="QGridLayout" name="gridLayout">
       <item row="0" column="0">
        <widget class="QLabel" name="labelImage">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Current Image</string>
         </property>
@@ -116,6 +119,9 @@
       </item>
       <item row="0" column="1">
        <widget class="QLabel" name="labelImageID">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>NULL</string>
         </property>
@@ -123,6 +129,9 @@
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_4">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Total Images</string>
         </property>
@@ -130,6 +139,9 @@
       </item>
       <item row="1" column="1">
        <widget class="QLabel" name="label_6">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>TextLabel</string>
         </property>
@@ -137,6 +149,9 @@
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_5">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>TextLabel</string>
         </property>
@@ -144,6 +159,9 @@
       </item>
       <item row="2" column="1">
        <widget class="QLabel" name="label_7">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>TextLabel</string>
         </property>
@@ -151,6 +169,9 @@
       </item>
       <item row="3" column="1">
        <widget class="QCheckBox" name="skipCheckBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Skip Images with annotations</string>
         </property>
@@ -193,19 +214,6 @@
      </layout>
     </widget>
    </item>
-   <item>
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
   </layout>
  </widget>
  <customwidgets>
@@ -235,8 +243,8 @@
      <y>228</y>
     </hint>
     <hint type="destinationlabel">
-     <x>358</x>
-     <y>566</y>
+     <x>467</x>
+     <y>472</y>
     </hint>
    </hints>
   </connection>
@@ -252,7 +260,7 @@
     </hint>
     <hint type="destinationlabel">
      <x>73</x>
-     <y>472</y>
+     <y>413</y>
     </hint>
    </hints>
   </connection>
@@ -267,8 +275,8 @@
      <y>508</y>
     </hint>
     <hint type="destinationlabel">
-     <x>612</x>
-     <y>530</y>
+     <x>388</x>
+     <y>447</y>
     </hint>
    </hints>
   </connection>
@@ -283,8 +291,8 @@
      <y>510</y>
     </hint>
     <hint type="destinationlabel">
-     <x>400</x>
-     <y>472</y>
+     <x>457</x>
+     <y>413</y>
     </hint>
    </hints>
   </connection>
@@ -299,7 +307,7 @@
      <y>511</y>
     </hint>
     <hint type="destinationlabel">
-     <x>611</x>
+     <x>468</x>
      <y>242</y>
     </hint>
    </hints>
@@ -312,10 +320,10 @@
    <hints>
     <hint type="sourcelabel">
      <x>482</x>
-     <y>775</y>
+     <y>645</y>
     </hint>
     <hint type="destinationlabel">
-     <x>367</x>
+     <x>298</x>
      <y>242</y>
     </hint>
    </hints>
@@ -327,8 +335,8 @@
    <slot>click()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>571</x>
-     <y>785</y>
+     <x>491</x>
+     <y>645</y>
     </hint>
     <hint type="destinationlabel">
      <x>79</x>
@@ -344,11 +352,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>253</x>
-     <y>750</y>
+     <y>645</y>
     </hint>
     <hint type="destinationlabel">
-     <x>361</x>
-     <y>435</y>
+     <x>418</x>
+     <y>376</y>
     </hint>
    </hints>
   </connection>
