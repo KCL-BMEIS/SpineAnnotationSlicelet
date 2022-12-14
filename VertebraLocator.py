@@ -16,7 +16,7 @@ from xnat import SimpleXNAT
 
 
 #
-# VertebraLocator
+# VertebraLocator module
 #
 
 class VertebraLocator(ScriptedLoadableModule):
@@ -114,10 +114,6 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic = None
         self._parameterNode = None
         self._updatingGUIFromParameterNode = False
-        self._xnat = None
-        self._currentImage = None
-        self._currentID = None
-        self._folder = None
 
     def setup(self):
         """
@@ -127,79 +123,10 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Load widget from .ui file (created by Qt Designer).
         # Additional widgets can be instantiated manually and added to self.layout.
-        uiWidget = slicer.util.loadUI(self.resourcePath('UI/VertebraLocator.ui'))
+        uiWidget = slicer.util.loadUI(self.resourcePath('UI/VertebraLocator2.ui'))
         self.layout.addWidget(uiWidget)
-
-        # Info on available MarkupWidgets:
-        # qMRMLMarkupsDisplayNodeWidget = Display box
-        # qMRMLMarkupsInteractionHandleWidget = Display - Interaction Handle
-        # qMRMLMarkupsToolBar = markup node selector dropdown
-        # qSlicerMarkupsPlaceWidget = buttons for placement mode, delete etc.
-        # qSlicerSimpleMarkupsWidget = label list and control buttons
-
-        # widget = slicer.qSlicerSimpleMarkupsWidget()
-        # self.layout.addWidget(widget)
-
-        # w = slicer.qSlicerMarkupsPlaceWidget()
-        # w.setMRMLScene(slicer.mrmlScene)
-        # markupsNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsCurveNode")
-        # w.setCurrentNode(slicer.mrmlScene.GetNodeByID(markupsNode.GetID()))
-        # Hide all buttons and only show place button
-        # w.buttonsVisible = False
-        # w.placeButton().show()
-        # self.layout.addWidget(w)
-
-        # # include markups module as widget - how to access/modify this??
-        # # Different object than normal markups module
-        # markupsModule = slicer.modules.markups.createNewWidgetRepresentation()
-        # # # markupsModule.setMRMLScene(slicer.app.mrmlScene())
-        # # # markupsModule.show()
-        # markupsModule.createMarkupsGroupBox.hide()
-        # markupsModule.createMarkupsGroupBox.hide()
-        # markupsModule.displayCollapsibleButton.hide()
-        # markupsModule.exportImportCollapsibleButton.hide()
-        # markupsModule.measurementsCollapsibleButton.hide()
-        #
-        # # hide more elements of the controlpoint sub-widget
-        # c = markupsModule.controlPointsCollapsibleButton
-        # c.enabled = True
-        # c.collapsed = False
-        # c.label_3.hide()
-        # c.listLockedUnlockedPushButton.hide()
-        # c.fixedNumberOfControlPointsPushButton.hide()
-        # c.visibilityAllControlPointsInListMenuButton.hide()
-        # c.selectedAllControlPointsInListMenuButton.hide()
-        # c.lockAllControlPointsInListMenuButton.hide()
-        # c.missingControlPointPushButton.hide()
-        # c.unsetControlPointPushButton.hide()
-        # c.deleteAllControlPointsInListPushButton.hide()
-        # c.CutControlPointsToolButton.hide()
-        # c.CopyControlPointsToolButton.hide()
-        # c.PasteControlPointsToolButton.hide()
-        # c.label_coords.hide()
-        # c.coordinatesComboBox.hide()
-        # c.advancedCollapsibleButton.hide()
-        #
-        # c.activeMarkupTableWidget.connect("cellChanged(int, int)",
-        #                                   markupsModule,
-        #                                   "onActiveMarkupTableCellChanged(int, int)")
-        #
-        # c.activeMarkupTableWidget.connect("itemClicked(QTableWidgetItem*)",
-        #                                   markupsModule,
-        #                                   "onActiveMarkupTableCellClicked(QTableWidgetItem*)")
-        #
-        # c.activeMarkupTableWidget.connect("currentCellChanged(int, int, int, int)",
-        #                                   markupsModule,
-        #                                   "onActiveMarkupTableCurrentCellChanged(int, int, int, int)")
-        #
-        # c.activeMarkupTableWidget.connect("customContextMenuRequested(QPoint)",
-        #                                   markupsModule,
-        #                                   "onRightClickActiveMarkupTableWidget(QPoint)")
-        # # c.activeMarkupTableWidget.setCurrentNode(
-        # #     slicer.util.getModuleGui("markups")
-        # #     self._parameterNode.GetNodeReference("InputVolume"))
-        #
-        # self.layout.addWidget(markupsModule)
+        uiWidget2 = VertebraLocatorSecondaryWidget()
+        self.layout.addWidget(uiWidget2)
 
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
@@ -212,50 +139,250 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # in batch mode, without a graphical user interface.
         self.logic = VertebraLocatorLogic()
 
-        markupsLogic = slicer.modules.markups.logic()
-        # activate persistent place mode for control points
-        interactionNode = slicer.util.getNodesByClass("vtkMRMLInteractionNode")
-        markupsLogic.StartPlaceMode(interactionNode)
+        # ########### #
+        # Connections #
+        # ########### #
 
-        # hide various UI elements of Markups module
-        m = slicer.util.getModuleGui("Markups")
-        # run in slicer prompt to see all available children:
-        # slicer.util.getModuleGui("Markups").children()
-        m.findChild("QGroupBox", "createMarkupsGroupBox").hide()
-        m.findChild("qMRMLCollapsibleButton", "displayCollapsibleButton").hide()
-        m.findChild("qMRMLCollapsibleButton", "exportImportCollapsibleButton").hide()
-        m.findChild("ctkCollapsibleButton", "measurementsCollapsibleButton").hide()
-        m.findChild("ctkExpandableWidget", "ResizableFrame").hide()
+        # These connections ensure that we update parameter node when scene is closed
+        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent,
+                         self.onSceneStartClose)
+        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
-        # hide more elements of the controlpoint sub-widget
-        c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
-        c.checked = True
-        c.findChild("QLabel", "label_3").hide()
-        c.findChild("QPushButton", "listLockedUnlockedPushButton").hide()
-        c.findChild("QPushButton", "fixedNumberOfControlPointsPushButton").hide()
-        c.findChild("ctkMenuButton", "visibilityAllControlPointsInListMenuButton").hide()
-        c.findChild("ctkMenuButton", "selectedAllControlPointsInListMenuButton").hide()
-        c.findChild("ctkMenuButton", "lockAllControlPointsInListMenuButton").hide()
-        c.findChild("QPushButton", "missingControlPointPushButton").hide()
-        c.findChild("QPushButton", "unsetControlPointPushButton").hide()
-        c.findChild("QPushButton", "deleteAllControlPointsInListPushButton").hide()
-        c.findChild("QToolButton", "CutControlPointsToolButton").hide()
-        c.findChild("QToolButton", "CopyControlPointsToolButton").hide()
-        c.findChild("QToolButton", "PasteControlPointsToolButton").hide()
-        c.findChild("QLabel", "label_coords").hide()
-        c.findChild("QComboBox", "coordinatesComboBox").hide()
-        c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
-        c.findChild("QLabel", "label").hide()
-        c.findChild("QComboBox", "jumpModeComboBox").hide()
+        # Buttons
+        self.ui.pushButton.connect('clicked(bool)', self.onButton)
 
-        # activate slice intersection for the slice viewer
-        c.findChild("ctkCheckBox", "sliceIntersectionsVisibilityCheckBox").checked = True
+        # Make sure parameter node is initialized (needed for module reload)
+        self.initializeParameterNode()
 
-        # try and maximise control point table height
-        # c.findChild("QTableWidget", "activeMarkupTableWidget").setFixedHeight(670)
-        m.findChild("ctkDynamicSpacer", "DynamicSpacer").hide()
-        c.findChild("QTableWidget", "activeMarkupTableWidget").setSizePolicy(
-            qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
+    def cleanup(self):
+        """
+        Called when the application closes and the module widget is destroyed.
+        """
+        self.removeObservers()
+
+    def enter(self):
+        """
+        Called each time the user opens this module.
+        """
+        # Make sure parameter node exists and observed
+        self.initializeParameterNode()
+
+    def exit(self):
+        """
+        Called each time the user opens a different module.
+        """
+        # Do not react to parameter node changes (GUI will be updated when the
+        # user enters into the module)
+        self.removeObserver(self._parameterNode,
+                            vtk.vtkCommand.ModifiedEvent,
+                            self.updateGUIFromParameterNode)
+
+    def onSceneStartClose(self, caller, event):
+        """
+        Called just before the scene is closed.
+        """
+        # Parameter node will be reset, do not use it anymore
+        self.setParameterNode(None)
+
+    def onSceneEndClose(self, caller, event):
+        """
+        Called just after the scene is closed.
+        """
+        # If this module is shown while the scene is closed then recreate a new
+        # parameter node immediately
+        if self.parent.isEntered:
+            self.initializeParameterNode()
+
+    def initializeParameterNode(self):
+        """
+        Ensure parameter node exists and observed.
+        """
+        # Parameter node stores all user choices in parameter values, node selections, etc.
+        # so that when the scene is saved and reloaded, these settings are restored.
+
+        self.setParameterNode(self.logic.getParameterNode())
+
+    def setParameterNode(self, inputParameterNode):
+        """
+        Set and observe parameter node.
+        Observation is needed because when the parameter node is changed then
+        the GUI must be updated immediately.
+        """
+        if inputParameterNode:
+            self.logic.setDefaultParameters(inputParameterNode)
+
+        # Unobserve previously selected parameter node and add an observer to
+        # the newly selected. Changes of parameter node are observed so that
+        # whenever parameters are changed by a script or any other module those
+        # are reflected immediately in the GUI.
+        if self._parameterNode is not None:
+            self.removeObserver(self._parameterNode,
+                                vtk.vtkCommand.ModifiedEvent,
+                                self.updateGUIFromParameterNode)
+        self._parameterNode = inputParameterNode
+
+        # Initial GUI update
+        self.updateGUIFromParameterNode()
+
+    def updateGUIFromParameterNode(self, caller=None, event=None):
+        """
+        This method is called whenever parameter node is changed.
+        The module GUI is updated to show the current state of the parameter node.
+        """
+
+        if self._parameterNode is None or self._updatingGUIFromParameterNode:
+            return
+
+        # Make sure GUI changes do not call updateParameterNodeFromGUI
+        # (it could cause infinite loop)
+        self._updatingGUIFromParameterNode = True
+
+        # All the GUI updates are done
+        self._updatingGUIFromParameterNode = False
+
+    def updateParameterNodeFromGUI(self, caller=None, event=None):
+        """
+        This method is called when the user makes any change in the GUI.
+        The changes are saved into the parameter node (so that they are
+        restored when the scene is saved and loaded).
+        """
+
+        if self._parameterNode is None or self._updatingGUIFromParameterNode:
+            return
+
+        # Modify all properties in a single batch
+        wasModified = self._parameterNode.StartModify()
+
+        self._parameterNode.EndModify(wasModified)
+
+    def onButton(self):
+        """
+        Create a new widget in the GUI of the Markups module to combine the
+        needed functionality into one module. Hide UI elements not needed for
+        the intended workflow.
+        """
+        with slicer.util.tryWithErrorDisplay("Failed to add widget to Markups",
+                                             waitCursor=True):
+            markups = slicer.util.getModuleGui("Markups")
+            newWidget = VertebraLocatorSecondaryWidget()
+            # initialise paramter of new widget with those of widget from the
+            # VertebraLocator module
+            newWidget.name = "VertebraLocatorSecondaryWidget"
+            newWidget.setParameterNode(self._parameterNode)
+            # check whether Markups module already has a widget attached
+            if markups.findChild("QWidget", "VertebraLocatorSecondaryWidget"):
+                print("Widget already attached to Markups module")
+            else:
+                markups.layout().addWidget(newWidget)
+
+            # prune Markups GUI down to needed functionality
+
+            # hide various UI elements of Markups module
+            m = slicer.util.getModuleGui("Markups")
+            # run in slicer prompt to see all available children:
+            # slicer.util.getModuleGui("Markups").children()
+            m.findChild("QGroupBox", "createMarkupsGroupBox").hide()
+            m.findChild("qMRMLCollapsibleButton", "displayCollapsibleButton").hide()
+            m.findChild("qMRMLCollapsibleButton", "exportImportCollapsibleButton").hide()
+            m.findChild("ctkCollapsibleButton", "measurementsCollapsibleButton").hide()
+            m.findChild("ctkExpandableWidget", "ResizableFrame").hide()
+
+            # hide more elements of the controlpoint sub-widget
+            c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
+            c.checked = True
+            c.findChild("QLabel", "label_3").hide()
+            c.findChild("QPushButton", "listLockedUnlockedPushButton").hide()
+            c.findChild("QPushButton", "fixedNumberOfControlPointsPushButton").hide()
+            c.findChild("ctkMenuButton", "visibilityAllControlPointsInListMenuButton").hide()
+            c.findChild("ctkMenuButton", "selectedAllControlPointsInListMenuButton").hide()
+            c.findChild("ctkMenuButton", "lockAllControlPointsInListMenuButton").hide()
+            c.findChild("QPushButton", "missingControlPointPushButton").hide()
+            c.findChild("QPushButton", "unsetControlPointPushButton").hide()
+            c.findChild("QPushButton", "deleteAllControlPointsInListPushButton").hide()
+            c.findChild("QToolButton", "CutControlPointsToolButton").hide()
+            c.findChild("QToolButton", "CopyControlPointsToolButton").hide()
+            c.findChild("QToolButton", "PasteControlPointsToolButton").hide()
+            c.findChild("QLabel", "label_coords").hide()
+            c.findChild("QComboBox", "coordinatesComboBox").hide()
+            c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
+            c.findChild("QLabel", "label").hide()
+            c.findChild("QComboBox", "jumpModeComboBox").hide()
+
+            # activate slice intersection for the slice viewer
+            c.findChild("ctkCheckBox", "sliceIntersectionsVisibilityCheckBox").checked = True
+
+            # try and maximise control point table height
+            # c.findChild("QTableWidget", "activeMarkupTableWidget").setFixedHeight(670)
+            m.findChild("ctkDynamicSpacer", "DynamicSpacer").hide()
+            c.findChild("QTableWidget", "activeMarkupTableWidget").setSizePolicy(
+                qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
+
+            # hide first columns of table
+            c.findChild("QTableWidget", "activeMarkupTableWidget").setColumnHidden(0, True)
+            c.findChild("QTableWidget", "activeMarkupTableWidget").setColumnHidden(1, True)
+            c.findChild("QTableWidget", "activeMarkupTableWidget").setColumnHidden(2, True)
+
+
+#
+# VertebraLocatorSecondaryWidget
+#
+
+class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
+    """Uses ScriptedLoadableModuleWidget base class, available at:
+    https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
+    """
+
+    def __init__(self, parent=None):
+        """
+        Called when the user opens the module the first time and the widget is initialized.
+        """
+        # ScriptedLoadableModuleWidget.__init__(self, parent)
+        qt.QWidget.__init__(self, parent)
+        VTKObservationMixin.__init__(self)  # needed for parameter node observation
+        self.logic = None
+        self._parameterNode = None
+        self._updatingGUIFromParameterNode = False
+        self._xnat = None
+        self._currentImage = None
+        self._currentID = None
+        self._folder = None
+        self.setup()
+
+    def setup(self):
+        """
+        Called when the user opens the module the first time and the widget is initialized.
+        """
+        # ScriptedLoadableModuleWidget.setup(self)
+
+        # Load widget from .ui file (created by Qt Designer).
+        # Additional widgets can be instantiated manually and added to self.layout.
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        uiWidget = slicer.util.loadUI(os.path.join(cwd, "Resources/UI/VertebraLocator.ui"))
+        layout = qt.QVBoxLayout()
+        layout.addWidget(uiWidget)
+        self.setLayout(layout)
+
+        # Info on available MarkupWidgets:
+        # qMRMLMarkupsDisplayNodeWidget = Display box
+        # qMRMLMarkupsInteractionHandleWidget = Display - Interaction Handle
+        # qMRMLMarkupsToolBar = markup node selector dropdown
+        # qSlicerMarkupsPlaceWidget = buttons for placement mode, delete etc.
+        # qSlicerSimpleMarkupsWidget = label list and control buttons
+        # controlPointsCollapsibleButton is not made available (yet)
+
+        # widget = slicer.qSlicerSimpleMarkupsWidget()
+        # self.layout.addWidget(widget)
+
+        self.ui = slicer.util.childWidgetVariables(uiWidget)
+
+        # Set scene in MRML widgets. Make sure that in Qt designer the top-level qMRMLWidget's
+        # "mrmlSceneChanged(vtkMRMLScene*)" signal in is connected to each MRML widget's
+        # "setMRMLScene(vtkMRMLScene*)" slot.
+        uiWidget.setMRMLScene(slicer.mrmlScene)
+
+        # Create logic class. Logic implements all computations that should be possible to run
+        # in batch mode, without a graphical user interface.
+        self.logic = VertebraLocatorLogic()
 
         # ########### #
         # Connections #
@@ -432,10 +559,7 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             spineRegionSizes = [7, 12, 5, 5]
 
             # remove previously created markup node, if exists
-            try:
-                slicer.mrmlScene.RemoveNode(slicer.util.getNode("Vertebrae"))
-            except slicer.util.MRMLNodeNotFoundException:
-                pass
+            slicer.mrmlScene.RemoveNode(slicer.mrmlScene.GetFirstNodeByName("Vertebrae"))
 
             # create new markup node
             nodeID = markupsLogic.AddNewFiducialNode("Vertebrae")
@@ -448,19 +572,22 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             i = 0   # counter for all set controlpoints/vertebrae
             for region, n in zip(spineRegions, spineRegionSizes):
                 for j in range(n):
-                    slicer.util.getNode(nodeID).AddControlPoint(0, 0, 0)
-                    slicer.util.getNode(nodeID).UnsetNthControlPointPosition(i)
-                    slicer.util.getNode(nodeID).SetNthControlPointLabel(i, region+str(j+1))
-                    slicer.util.getNode(nodeID).SetNthControlPointDescription(i, defaultDescription)
+                    currentNode = slicer.mrmlScene.GetNodeByID(nodeID)
+                    currentNode.AddControlPoint(0, 0, 0)
+                    currentNode.UnsetNthControlPointPosition(i)
+                    currentNode.SetNthControlPointLabel(i, region+str(j+1))
+                    currentNode.SetNthControlPointDescription(i, defaultDescription)
                     i += 1
 
-            for markup in ["C", "T", "L", "S"]:
-                try:
-                    slicer.mrmlScene.RemoveNode(slicer.util.getNode(markup))
-                except slicer.util.MRMLNodeNotFoundException:
-                    pass
+            # activate persistent place mode for control points
+            interactionNode = slicer.util.getNodesByClass("vtkMRMLInteractionNode")
+            markupsLogic.StartPlaceMode(interactionNode)
 
             # old way of creating one markup node per spinal region
+            #
+            # for markup in ["C", "T", "L", "S"]:
+            #     slicer.mrmlScene.RemoveNode(slicer.mrmlScene.GetFirstNodeByName(markup))
+            #
             # idC = markupsLogic.AddNewFiducialNode("C")
             # slicer.util.getNode(idC).SetControlPointLabelFormat("%N%d")
             # # slicer.util.getNode(idC).GetDisplayNode().SetActiveColor()
@@ -500,15 +627,7 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             # ToDo:
             # Node List: SetDescription seems bugged and resets
-            # include this module/widget in Markups module
             # register shortcuts for extra functionality in markups?
-
-            # # test to add this widget to markups@
-            # self.createNewWidgetRepresentation()
-            # m = slicer.util.getModuleGui("Markups")
-            # m.layout().addWidget(VertebraLocatorWidget())
-
-            return
 
     def onLoadButton(self):
         """
@@ -527,7 +646,11 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
                 # instantiate the DICOM browser
                 slicer.util.selectModule("DICOM")
-                slicer.util.selectModule("VertebraLocator")
+                # switch back to current module
+                if self.parent().name == "VertebraLocatorModuleWidget":
+                    slicer.util.selectModule("VertebraLocator")
+                else:
+                    slicer.util.selectModule("Markups")
             # load first image
             self._next()
             self.onInitializeButton()
@@ -617,6 +740,7 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self._currentImage = loadedNodeIDs[0]
             # update viewers to new volume
             slicer.util.setSliceViewerLayers(background=self._currentImage)
+
 
 #
 # VertebraLocatorLogic
