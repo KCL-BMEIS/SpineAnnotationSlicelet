@@ -82,14 +82,10 @@ class SimpleXNAT:
 
     def get_scan_dicom_folder(self):
         """
-        Download locally the scan of the current scan
+        Download locally the image of the current scan
         :return: path of the DICOM folder
         """
         # Set the filename of the zip file to download
-        # filename = '{}-{}'.format(
-        #     self._current_scan['session_label'].values[0],
-        #     self._current_scan['id'].values[0]
-        # )
         filename = self._current_scan_folder + '.zip'
         # Rest request to download the data
         url = '{}/data/projects/{}/subjects/{}/experiments/{}/scans/{}'.format(
@@ -126,20 +122,20 @@ class SimpleXNAT:
             shutil.rmtree(self._current_scan_folder)
         self._current_scan_folder = None
 
-    def upload_annotations(self, annotation):
+    def upload_annotations(self, annotation_file):
         """
-        Save annotation to disk as a json file and upload it to XNAT as a
-        resource associated with current scan
+        Upload annotation file (JSON) to XNAT as a resource associated with
+        current scan.
         """
         # Save the annotation to disk as a json file
         filename = '{}-{}.json'.format(
             self._current_scan['session_label'].values[0],
             self._current_scan['id'].values[0]
         )
-        if not os.path.exists(self._current_scan_folder):
-            os.mkdir(self._current_scan_folder)
-        with open(os.path.join(self._current_scan_folder, filename), 'w') as f:
-            json.dump(annotation.to_json(), f)
+        # if not os.path.exists(self._current_scan_folder):
+        #     os.mkdir(self._current_scan_folder)
+        # with open(os.path.join(self._current_scan_folder, filename), 'w') as f:
+        #     json.dump(annotation.to_json(), f)
         # Create a new resource associated with the scan
         url = '{}/data/projects/{}/subjects/{}/experiments/{}/scans/{}'.format(
             self._server,
@@ -152,11 +148,9 @@ class SimpleXNAT:
         self._session.put(url)
         # Upload the json file in the newly created resource
         url += '/files/{}'.format(filename)
-        files = {'file': open(os.path.join(self._current_scan_folder,
-                                           filename),
-                              'rb')}
+        files = {'file': open(annotation_file, 'rb')}
         self._session.put(url, files=files)
-        os.remove(os.path.join(self._current_scan_folder, filename))
+        # os.remove(os.path.join(self._current_scan_folder, filename))
 
     def __iter__(self):
         """
@@ -182,12 +176,12 @@ class SimpleXNAT:
         self._current_scan_index += 1
         self._current_scan = self._scans.iloc[[i]]
         # Set the folder required to save data
-        filename = '{}-{}.json'.format(
+        foldername = '{}-{}'.format(
             self._current_scan['session_label'].values[0],
             self._current_scan['id'].values[0]
         )
         self._current_scan_folder = os.path.join(tempfile.gettempdir(),
-                                                 filename)
+                                                 foldername)
         return self._current_scan
 
     def __exit__(self, exc_t, exc_va, exc_bt):

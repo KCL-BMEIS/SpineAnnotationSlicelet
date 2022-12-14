@@ -1,6 +1,6 @@
 import logging
 import os
-
+import csv
 import json
 import vtk
 
@@ -8,8 +8,9 @@ import slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 from DICOMLib import DICOMUtils
+from copy import deepcopy
 
-# from __main__ import qt
+from __main__ import qt
 
 from xnat import SimpleXNAT
 
@@ -26,8 +27,8 @@ class VertebraLocator(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "Vertebra Locator"
-        self.parent.categories = ["Examples"]  # TODO: set categories (folders where the module shows up in the module selector)
-        self.parent.dependencies = ["Markups"]
+        self.parent.categories = ["Annotations"]
+        self.parent.dependencies = ["Markups", "DICOM"]
         self.parent.contributors = ["David Drobny (KCL), Marc Modat (KCL)"]
         self.parent.helpText = """
         This module is used to facilitate vertebra localisation and annotation on images imported 
@@ -36,10 +37,9 @@ class VertebraLocator(ScriptedLoadableModule):
         """
         # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = """
-        This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc., Andras Lasso, PerkLab,
-        and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR013218-12S1.
+        This file was originally developed by David Drobny, KCL, and Marc Modat, KCL and was 
+        partially funded by <grant>.
         """
-
         # Additional initialization step after application startup is complete
         # slicer.app.connect("startupCompleted()", registerSampleData)
 
@@ -115,6 +115,9 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode = None
         self._updatingGUIFromParameterNode = False
         self._xnat = None
+        self._currentImage = None
+        self._currentID = None
+        self._folder = None
 
     def setup(self):
         """
@@ -127,8 +130,15 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         uiWidget = slicer.util.loadUI(self.resourcePath('UI/VertebraLocator.ui'))
         self.layout.addWidget(uiWidget)
 
-        # widget2 = slicer.util.loadUI()
-        # self.layout.addWidget(uiWidget)
+        # Info on available MarkupWidgets:
+        # qMRMLMarkupsDisplayNodeWidget = Display box
+        # qMRMLMarkupsInteractionHandleWidget = Display - Interaction Handle
+        # qMRMLMarkupsToolBar = markup node selector dropdown
+        # qSlicerMarkupsPlaceWidget = buttons for placement mode, delete etc.
+        # qSlicerSimpleMarkupsWidget = label list and control buttons
+
+        # widget = slicer.qSlicerSimpleMarkupsWidget()
+        # self.layout.addWidget(widget)
 
         # w = slicer.qSlicerMarkupsPlaceWidget()
         # w.setMRMLScene(slicer.mrmlScene)
@@ -138,13 +148,6 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # w.buttonsVisible = False
         # w.placeButton().show()
         # self.layout.addWidget(w)
-
-        # Info on available MarkupWidgets:
-        # qMRMLMarkupsDisplayNodeWidget = Display box
-        # qMRMLMarkupsInteractionHandleWidget = Display - Interaction Handle
-        # qMRMLMarkupsToolBar = markup node selector dropdown
-        # qSlicerMarkupsPlaceWidget = buttons for placement mode, delete etc.
-        # qSlicerSimpleMarkupsWidget = label list and control buttons
 
         # # include markups module as widget - how to access/modify this??
         # # Different object than normal markups module
@@ -209,7 +212,54 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # in batch mode, without a graphical user interface.
         self.logic = VertebraLocatorLogic()
 
-        # Connections
+        markupsLogic = slicer.modules.markups.logic()
+        # activate persistent place mode for control points
+        interactionNode = slicer.util.getNodesByClass("vtkMRMLInteractionNode")
+        markupsLogic.StartPlaceMode(interactionNode)
+
+        # hide various UI elements of Markups module
+        m = slicer.util.getModuleGui("Markups")
+        # run in slicer prompt to see all available children:
+        # slicer.util.getModuleGui("Markups").children()
+        m.findChild("QGroupBox", "createMarkupsGroupBox").hide()
+        m.findChild("qMRMLCollapsibleButton", "displayCollapsibleButton").hide()
+        m.findChild("qMRMLCollapsibleButton", "exportImportCollapsibleButton").hide()
+        m.findChild("ctkCollapsibleButton", "measurementsCollapsibleButton").hide()
+        m.findChild("ctkExpandableWidget", "ResizableFrame").hide()
+
+        # hide more elements of the controlpoint sub-widget
+        c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
+        c.checked = True
+        c.findChild("QLabel", "label_3").hide()
+        c.findChild("QPushButton", "listLockedUnlockedPushButton").hide()
+        c.findChild("QPushButton", "fixedNumberOfControlPointsPushButton").hide()
+        c.findChild("ctkMenuButton", "visibilityAllControlPointsInListMenuButton").hide()
+        c.findChild("ctkMenuButton", "selectedAllControlPointsInListMenuButton").hide()
+        c.findChild("ctkMenuButton", "lockAllControlPointsInListMenuButton").hide()
+        c.findChild("QPushButton", "missingControlPointPushButton").hide()
+        c.findChild("QPushButton", "unsetControlPointPushButton").hide()
+        c.findChild("QPushButton", "deleteAllControlPointsInListPushButton").hide()
+        c.findChild("QToolButton", "CutControlPointsToolButton").hide()
+        c.findChild("QToolButton", "CopyControlPointsToolButton").hide()
+        c.findChild("QToolButton", "PasteControlPointsToolButton").hide()
+        c.findChild("QLabel", "label_coords").hide()
+        c.findChild("QComboBox", "coordinatesComboBox").hide()
+        c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
+        c.findChild("QLabel", "label").hide()
+        c.findChild("QComboBox", "jumpModeComboBox").hide()
+
+        # activate slice intersection for the slice viewer
+        c.findChild("ctkCheckBox", "sliceIntersectionsVisibilityCheckBox").checked = True
+
+        # try and maximise control point table height
+        # c.findChild("QTableWidget", "activeMarkupTableWidget").setFixedHeight(670)
+        m.findChild("ctkDynamicSpacer", "DynamicSpacer").hide()
+        c.findChild("QTableWidget", "activeMarkupTableWidget").setSizePolicy(
+            qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
+
+        # ########### #
+        # Connections #
+        # ########### #
 
         # These connections ensure that we update parameter node when scene is closed
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
@@ -232,12 +282,18 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                                      self.updateParameterNodeFromGUI)
 
         # Buttons
-        self.ui.buttonConfirm.connect('clicked(bool)', self.onConfirmButton)
-        self.ui.buttonInitialize.connect('clicked(bool)', self.onInitializeButton)
         self.ui.buttonLoad.connect('clicked(bool)', self.onLoadButton)
+        self.ui.buttonInitialize.connect('clicked(bool)', self.onInitializeButton)
+        self.ui.buttonConfirm.connect('clicked(bool)', self.onConfirmButton)
+        self.ui.buttonCancel.connect('clicked(bool)', self.onCancelButton)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
+
+        # hide default Slicer UI elements
+        slicer.util.setModuleHelpSectionVisible(False)
+        slicer.util.setDataProbeVisible(False)
+        slicer.util.setApplicationLogoVisible(False)
 
     def cleanup(self):
         """
@@ -256,8 +312,11 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Called each time the user opens a different module.
         """
-        # Do not react to parameter node changes (GUI wlil be updated when the user enters into the module)
-        self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self.updateGUIFromParameterNode)
+        # Do not react to parameter node changes (GUI will be updated when the
+        # user enters into the module)
+        self.removeObserver(self._parameterNode,
+                            vtk.vtkCommand.ModifiedEvent,
+                            self.updateGUIFromParameterNode)
 
     def onSceneStartClose(self, caller, event):
         """
@@ -270,7 +329,8 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Called just after the scene is closed.
         """
-        # If this module is shown while the scene is closed then recreate a new parameter node immediately
+        # If this module is shown while the scene is closed then recreate a new
+        # parameter node immediately
         if self.parent.isEntered:
             self.initializeParameterNode()
 
@@ -289,7 +349,6 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         Observation is needed because when the parameter node is changed then
         the GUI must be updated immediately.
         """
-
         if inputParameterNode:
             self.logic.setDefaultParameters(inputParameterNode)
 
@@ -365,17 +424,35 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         with slicer.util.tryWithErrorDisplay("Failed to initialise Markups.",
                                              waitCursor=True):
 
-            # hide default Slicer UI elements
-            slicer.util.setModuleHelpSectionVisible(False)
-            slicer.util.setDataProbeVisible(False)
-            slicer.util.setApplicationLogoVisible(False)
-
-            defaultDescription = "none"
-
-            # delete markup lists if they already exist
-            # create markup lists, one each for C, T, L, S vertebrae
-            # populate markup lists with markup control points for each vertebra
+            defaultDescription = "none"     # default for description field of control points
             markupsLogic = slicer.modules.markups.logic()
+
+            # region labels and default numbers for the spinal regions
+            spineRegions = ["C", "T", "L", "S"]
+            spineRegionSizes = [7, 12, 5, 5]
+
+            # remove previously created markup node, if exists
+            try:
+                slicer.mrmlScene.RemoveNode(slicer.util.getNode("Vertebrae"))
+            except slicer.util.MRMLNodeNotFoundException:
+                pass
+
+            # create new markup node
+            nodeID = markupsLogic.AddNewFiducialNode("Vertebrae")
+            slicer.util.getNode(nodeID).SetControlPointLabelFormat("%N%d")
+            slicer.util.getNode(nodeID).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
+            slicer.util.getNode(nodeID).SetDescription(
+                "List for all vertebra annotations, one controlpoint per center of vertebral body")
+
+            # create one control point per vertebra
+            i = 0   # counter for all set controlpoints/vertebrae
+            for region, n in zip(spineRegions, spineRegionSizes):
+                for j in range(n):
+                    slicer.util.getNode(nodeID).AddControlPoint(0, 0, 0)
+                    slicer.util.getNode(nodeID).UnsetNthControlPointPosition(i)
+                    slicer.util.getNode(nodeID).SetNthControlPointLabel(i, region+str(j+1))
+                    slicer.util.getNode(nodeID).SetNthControlPointDescription(i, defaultDescription)
+                    i += 1
 
             for markup in ["C", "T", "L", "S"]:
                 try:
@@ -383,78 +460,43 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 except slicer.util.MRMLNodeNotFoundException:
                     pass
 
-            idC = markupsLogic.AddNewFiducialNode("C")
-            slicer.util.getNode(idC).SetControlPointLabelFormat("%N%d")
-            # slicer.util.getNode(idC).GetDisplayNode().SetActiveColor()
-            slicer.util.getNode(idC).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
-            for i in range(7):
-                slicer.util.getNode(idC).AddControlPoint(0, 0, 0)
-                slicer.util.getNode(idC).UnsetNthControlPointPosition(i)
-                slicer.util.getNode(idC).SetNthControlPointDescription(i, defaultDescription)
-            slicer.util.getNode(idC).SetDescription("Cervical Spine")
-
-            idT = markupsLogic.AddNewFiducialNode("T")
-            slicer.util.getNode(idT).SetControlPointLabelFormat("%N%d")
-            slicer.util.getNode(idT).GetDisplayNode().SetSelectedColor(1.0, 0.25, 0.5)
-            for i in range(12):
-                slicer.util.getNode(idT).AddControlPoint(0, 0, 0)
-                slicer.util.getNode(idT).UnsetNthControlPointPosition(i)
-                slicer.util.getNode(idT).SetNthControlPointDescription(i, defaultDescription)
-            slicer.util.getNode(idT).SetDescription("Thoracic Spine")
-
-            idL = markupsLogic.AddNewFiducialNode("L")
-            slicer.util.getNode(idL).SetControlPointLabelFormat("%N%d")
-            slicer.util.getNode(idL).GetDisplayNode().SetSelectedColor(0.25, 0.5, 1.0)
-            for i in range(5):
-                slicer.util.getNode(idL).AddControlPoint(0, 0, 0)
-                slicer.util.getNode(idL).UnsetNthControlPointPosition(i)
-                slicer.util.getNode(idL).SetNthControlPointDescription(i, defaultDescription)
-            slicer.util.getNode(idL).SetDescription("Lumbar Spine")
-
-            idS = markupsLogic.AddNewFiducialNode("S")
-            slicer.util.getNode(idS).SetControlPointLabelFormat("%N%d")
-            slicer.util.getNode(idS).GetDisplayNode().SetSelectedColor(0.25, 1.0, 0.5)
-            for i in range(3):
-                slicer.util.getNode(idS).AddControlPoint(0, 0, 0)
-                slicer.util.getNode(idS).UnsetNthControlPointPosition(i)
-                slicer.util.getNode(idS).SetNthControlPointDescription(i, defaultDescription)
-            slicer.util.getNode(idS).SetDescription("Sacrum")
-
-            # activate persistent place mode for control points
-            interactionNode = slicer.util.getNodesByClass("vtkMRMLInteractionNode")
-            markupsLogic.StartPlaceMode(interactionNode)
-
-            # hide various UI elements of Markups module
-            m = slicer.util.getModuleGui("Markups")
-            # run in slicer prompt to see all available children:
-            # getModuleGui("Markups").children()
-            m.findChild("QGroupBox", "createMarkupsGroupBox").hide()
-            m.findChild("qMRMLCollapsibleButton", "displayCollapsibleButton").hide()
-            m.findChild("qMRMLCollapsibleButton", "exportImportCollapsibleButton").hide()
-            m.findChild("ctkCollapsibleButton", "measurementsCollapsibleButton").hide()
-
-            # hide more elements of the controlpoint sub-widget
-            c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
-            c.findChild("QLabel", "label_3").hide()
-            c.findChild("QPushButton", "listLockedUnlockedPushButton").hide()
-            c.findChild("QPushButton", "fixedNumberOfControlPointsPushButton").hide()
-            c.findChild("ctkMenuButton", "visibilityAllControlPointsInListMenuButton").hide()
-            c.findChild("ctkMenuButton", "selectedAllControlPointsInListMenuButton").hide()
-            c.findChild("ctkMenuButton", "lockAllControlPointsInListMenuButton").hide()
-            c.findChild("QPushButton", "missingControlPointPushButton").hide()
-            c.findChild("QPushButton", "unsetControlPointPushButton").hide()
-            c.findChild("QPushButton", "deleteAllControlPointsInListPushButton").hide()
-            c.findChild("QToolButton", "CutControlPointsToolButton").hide()
-            c.findChild("QToolButton", "CopyControlPointsToolButton").hide()
-            c.findChild("QToolButton", "PasteControlPointsToolButton").hide()
-            c.findChild("QLabel", "label_coords").hide()
-            c.findChild("QComboBox", "coordinatesComboBox").hide()
-            c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
-
-            # try and maximise control point table height
-            c.findChild("QTableWidget", "activeMarkupTableWidget").setFixedHeight(470)
-            # c.findChild("QTableWidget", "activeMarkupTableWidget").setSizePolicy(
-            #     qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
+            # old way of creating one markup node per spinal region
+            # idC = markupsLogic.AddNewFiducialNode("C")
+            # slicer.util.getNode(idC).SetControlPointLabelFormat("%N%d")
+            # # slicer.util.getNode(idC).GetDisplayNode().SetActiveColor()
+            # slicer.util.getNode(idC).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
+            # for i in range(7):
+            #     slicer.util.getNode(idC).AddControlPoint(0, 0, 0)
+            #     slicer.util.getNode(idC).UnsetNthControlPointPosition(i)
+            #     slicer.util.getNode(idC).SetNthControlPointDescription(i, defaultDescription)
+            # slicer.util.getNode(idC).SetDescription("Cervical Spine")
+            #
+            # idT = markupsLogic.AddNewFiducialNode("T")
+            # slicer.util.getNode(idT).SetControlPointLabelFormat("%N%d")
+            # slicer.util.getNode(idT).GetDisplayNode().SetSelectedColor(1.0, 0.25, 0.5)
+            # for i in range(12):
+            #     slicer.util.getNode(idT).AddControlPoint(0, 0, 0)
+            #     slicer.util.getNode(idT).UnsetNthControlPointPosition(i)
+            #     slicer.util.getNode(idT).SetNthControlPointDescription(i, defaultDescription)
+            # slicer.util.getNode(idT).SetDescription("Thoracic Spine")
+            #
+            # idL = markupsLogic.AddNewFiducialNode("L")
+            # slicer.util.getNode(idL).SetControlPointLabelFormat("%N%d")
+            # slicer.util.getNode(idL).GetDisplayNode().SetSelectedColor(0.25, 0.5, 1.0)
+            # for i in range(5):
+            #     slicer.util.getNode(idL).AddControlPoint(0, 0, 0)
+            #     slicer.util.getNode(idL).UnsetNthControlPointPosition(i)
+            #     slicer.util.getNode(idL).SetNthControlPointDescription(i, defaultDescription)
+            # slicer.util.getNode(idL).SetDescription("Lumbar Spine")
+            #
+            # idS = markupsLogic.AddNewFiducialNode("S")
+            # slicer.util.getNode(idS).SetControlPointLabelFormat("%N%d")
+            # slicer.util.getNode(idS).GetDisplayNode().SetSelectedColor(0.25, 1.0, 0.5)
+            # for i in range(3):
+            #     slicer.util.getNode(idS).AddControlPoint(0, 0, 0)
+            #     slicer.util.getNode(idS).UnsetNthControlPointPosition(i)
+            #     slicer.util.getNode(idS).SetNthControlPointDescription(i, defaultDescription)
+            # slicer.util.getNode(idS).SetDescription("Sacrum")
 
             # ToDo:
             # Node List: SetDescription seems bugged and resets
@@ -472,27 +514,23 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Establish the connection to an XNAT server with the provided user credentials.
         """
-        # with slicer.util.tryWithErrorDisplay("Failed to connect to XNAT.",
-        #                                      waitCursor=True):
-        # create xnat object
-        if self._xnat is None:
-            self._xnat = SimpleXNAT(self.ui.serverLineEdit.text,
-                                   user=self.ui.userLineEdit.text,
-                                   pwd=self.ui.passwordLineEdit.text,
-                                   xml_query_file=self.ui.xmlLineEdit.text)
-            iter(self._xnat)
-        next(self._xnat)
-        dicomFolder = self._xnat.get_scan_dicom_folder()
-        print(dicomFolder)
-        DICOMUtils.importDicom(dicomFolder)
+        with slicer.util.tryWithErrorDisplay("Failed to connect to XNAT.",
+                                             waitCursor=True):
+            if self._xnat is None:
+                # create xnat object
+                self._xnat = SimpleXNAT(self.ui.serverLineEdit.text,
+                                        user=self.ui.userLineEdit.text,
+                                        pwd=self.ui.passwordLineEdit.text,
+                                        xml_query_file=self.ui.xmlLineEdit.text)
+                # initialize iterator
+                iter(self._xnat)
 
-        # for img in self._xnat:
-        #     print(img)
-        #     dicomFolder = self._xnat.get_scan_dicom_folder()
-        #     # load folder into dicom loader
-        #     print(dicomFolder)
-        #     break
-
+                # instantiate the DICOM browser
+                slicer.util.selectModule("DICOM")
+                slicer.util.selectModule("VertebraLocator")
+            # load first image
+            self._next()
+            self.onInitializeButton()
 
     def onConfirmButton(self):
         """
@@ -501,41 +539,89 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         with slicer.util.tryWithErrorDisplay("Failed to save annotations to XNAT.",
                                              waitCursor=True):
-            # save markup lists
-            # send markups to XNAT
-            # identify and load next image from XNAT
-            # (re-) initialise markups
-            markupsLogic = slicer.modules.markups.logic()
 
-            markupsLogic.ExportControlPointsToCSV(markupsNode, "/path/to/MyControlPoints.csv")
-            return
+            # old way of creating one markup node per spinal region
+            # # JSON version
+            # mergedFile = os.path.join(self._folder, self._currentID + ".json")
+            # files = []
+            # for markup in ["C", "T", "L", "S"]:
+            #     path = os.path.join(self._folder, self._currentID+"_"+markup+".json")
+            #     files.append(path)
+            #     slicer.util.saveNode(slicer.util.getNode(markup), path)
+            # self.logic.mergeMarkupJSON(files, mergedFile)
+            #
+            # # CSV version
+            # mergedFile = os.path.join(self._folder, self._currentID + ".csv")
+            # markupsLogic = slicer.modules.markups.logic()
+            # combined_csv = []
+            # for markup in ["C", "T", "L", "S"]:
+            #     path = os.path.join(self._folder, self._currentID+"_"+markup+".csv")
+            #     markupsLogic.ExportControlPointsToCSV(slicer.util.getNode(markup), path)
+            #
+            #     with open(path, newline='') as file:
+            #         reader = csv.reader(file)
+            #         for i, row in enumerate(reader):
+            #             print(i)
+            #             if not markup == "C" and i==0:
+            #                 continue
+            #             print(row)
+            #             combined_csv.append(row)
+            #
+            # with open(mergedFile, 'w', newline='') as file:
+            #     writer = csv.writer(file)
+            #     writer.writerows(combined_csv)
+            # print(combined_csv)
+            #
+            # # upload merged annotations
+            # self._xnat.upload_annotations(mergedFile)
 
-    # demo
-    def onApplyButton(self):
+            path = os.path.join(self._folder, self._currentID + ".json")
+            slicer.util.saveNode(slicer.util.getNode("Vertebrae"), path)
+            self._xnat.upload_annotations(path)
+
+            self._next()
+            self.onInitializeButton()
+
+    def onCancelButton(self):
         """
-        Run processing when user clicks "Apply" button.
+        Don't save annotations to XNAT, continue to next image.
         """
-        with slicer.util.tryWithErrorDisplay("Failed to initialise Markups.", waitCursor=True):
+        with slicer.util.tryWithErrorDisplay("Failed to continue.",
+                                             waitCursor=True):
+            # ToDo: desireable to save tag in XNAT, that image was processed
+            #  with no annotation to save
+            self._next()
+            self.onInitializeButton()
 
-            # Compute output
-            self.logic.process(self.ui.inputSelector.currentNode(),
-                               self.ui.outputSelector.currentNode(),
-                               self.ui.imageThresholdSliderWidget.value,
-                               self.ui.invertOutputCheckBox.checked)
+    def _next(self):
+        """
+        Utility function to load and switch to the next image.
+        """
+        subject = next(self._xnat)
+        self._currentID = subject['session_label'].values[0]
+        self._folder = self._xnat.get_scan_dicom_folder()
+        # print(dicomFolder)
 
-            # Compute inverted output (if needed)
-            if self.ui.invertedOutputSelector.currentNode():
-                # If additional output volume is selected then result with
-                # inverted threshold is written there
-                self.logic.process(self.ui.inputSelector.currentNode(),
-                                   self.ui.invertedOutputSelector.currentNode(),
-                                   self.ui.imageThresholdSliderWidget.value,
-                                   not self.ui.invertOutputCheckBox.checked, showResult=False)
+        # delete current image to not litter the viewer
+        if self._currentImage is not None:
+            slicer.mrmlScene.RemoveNode(slicer.util.getNode(self._currentImage))
 
+        with DICOMUtils.TemporaryDICOMDatabase() as db:
+            DICOMUtils.importDicom(self._folder, db)
+            # create loadable volumes from dicom
+            slicer.modules.DICOMWidget.browserWidget.examineForLoading()
+            # load volume
+            patient_name = self._currentID.split("_", 1)[0]
+            loadedNodeIDs = DICOMUtils.loadPatientByName(patient_name)
+            # store reference so volume can be deleted
+            self._currentImage = loadedNodeIDs[0]
+            # update viewers to new volume
+            slicer.util.setSliceViewerLayers(background=self._currentImage)
 
 #
 # VertebraLocatorLogic
 #
+
 
 class VertebraLocatorLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual computation done by your
@@ -556,42 +642,92 @@ class VertebraLocatorLogic(ScriptedLoadableModuleLogic):
         """
         Initialize parameter node with default settings.
         """
-        if not parameterNode.GetParameter("Threshold"):
-            parameterNode.SetParameter("Threshold", "100.0")
-        if not parameterNode.GetParameter("Invert"):
-            parameterNode.SetParameter("Invert", "false")
+        if not parameterNode.GetParameter("serverLineEdit"):
+            parameterNode.SetParameter("serverLineEdit", "https://")
 
-    def process(self, inputVolume, outputVolume, imageThreshold, invert=False, showResult=True):
+    def mergeMarkupJSON(self, files, mergedFilePath=None):
         """
-        Run the processing algorithm.
+        Merge Markup JSON files provided as a list of paths into a single file.
+        This way, control points of separate lists will be merged into a single
+        list and stay like that when directly loaded into Slicer. For splitting
+        a merged file back into separate lists, see splitMarkupJSON().
         Can be used without GUI widget.
-        :param inputVolume: volume to be thresholded
-        :param outputVolume: thresholding result
-        :param imageThreshold: values above/below this threshold will be set to 0
-        :param invert: if True then values above the threshold will be set to 0, otherwise values below are set to 0
-        :param showResult: show output volume in slice viewers
+        :param files: a list of JSON file paths
+        :param mergedFilePath: file path for the resulting merged JSON file
+
+        :returns: the path to the JSON file containing the merged control points
         """
+        # ToDo: Check for repeating names of control points from different lists
+        # ToDo: Store additional information of the individual JSON files
 
-        if not inputVolume or not outputVolume:
-            raise ValueError("Input or output volume is invalid")
+        allControlPoints = []
+        for file in files:
+            with open(file) as json_file:
+                data = json.load(json_file)
+                if data['markups'][0]['type'] != "Fiducial":
+                    raise ValueError("Input file is not a Fiducial type Markup")
+                for controlPoint in data['markups'][0]['controlPoints']:
+                    allControlPoints.append(controlPoint)
 
-        import time
-        startTime = time.time()
-        logging.info('Processing started')
+        # overwrite control points of last JSON to create merged markup
+        data['markups'][0]['controlPoints'] = allControlPoints
 
-        # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
-        cliParams = {
-            'InputVolume': inputVolume.GetID(),
-            'OutputVolume': outputVolume.GetID(),
-            'ThresholdValue': imageThreshold,
-            'ThresholdType': 'Above' if invert else 'Below'
-        }
-        cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
-        # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-        slicer.mrmlScene.RemoveNode(cliNode)
+        # store merged file
+        if mergedFilePath is None:
+            mergedFilePath = os.path.join(os.path.dirname(files[-1]),
+                                          files[-1].rpartition('_')[0] + '_merged.json')
+        with open(mergedFilePath, 'w') as outfile:
+            json.dump(data, outfile, indent=4)
+        return mergedFilePath
 
-        stopTime = time.time()
-        logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
+    def splitMarkupJSON(self, file, splitFiles=None):
+        """
+        Split a Markup JSON file into multiple files, based on the control
+        point names. Splitting into C, T, L, and S vertebral regions.
+
+        :param file: path to a file which is to be split
+        :param splitFiles: a list of paths for the resulting split JSON files
+        :return: a list of paths to files with the split annotation files
+        """
+        cControlPoints = []
+        tControlPoints = []
+        lControlPoints = []
+        sControlPoints = []
+        with open(file) as json_file:
+            data = json.load(json_file)
+            if data['markups'][0]['type'] != "Fiducial":
+                raise ValueError("Input file is not a Fiducial type Markup")
+            for controlPoint in data['markups'][0]['controlPoints']:
+                if controlPoint['label'].startswith("C"):
+                    cControlPoints.append(controlPoint)
+                if controlPoint['label'].startswith("T"):
+                    tControlPoints.append(controlPoint)
+                if controlPoint['label'].startswith("L"):
+                    lControlPoints.append(controlPoint)
+                if controlPoint['label'].startswith("S"):
+                    sControlPoints.append(controlPoint)
+        allData = [deepcopy(data) for _ in range(4)]
+        allData[0]['markups'][0]['controlPoints'] = cControlPoints
+        allData[1]['markups'][0]['controlPoints'] = tControlPoints
+        allData[2]['markups'][0]['controlPoints'] = lControlPoints
+        allData[3]['markups'][0]['controlPoints'] = sControlPoints
+
+        # ToDo: recover additional markup data stored in the merged file
+
+        # store split files
+        if splitFiles is None:
+            creatingResultPaths = True
+            splitFiles = []
+            for i, section in enumerate(["C", "T", "L", "S"]):
+                if creatingResultPaths:
+                    path = os.path.join(file.rpartition('.')[0]+'_test_'+section+'.json')
+                    print(path)
+                    splitFiles.append(path)
+
+                with open(splitFiles[i], 'w') as outfile:
+                    json.dump(allData[i], outfile, indent=4)
+
+        return splitFiles
 
 
 #
