@@ -40,7 +40,7 @@ class SimpleXNAT:
 
     def _update_scan_list(self, filepath=None):
         """
-        Performs an xnat search via the rest to retrive the list of CT scans
+        Performs an xnat search via the rest to retrieve the list of CT scans
         in MSKGSTT project. This is encoded in the xnat_scan_query.xml file.
         The list in stored as a pandas dataframe
         """

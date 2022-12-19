@@ -263,6 +263,8 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         with slicer.util.tryWithErrorDisplay("Failed to add widget to Markups",
                                              waitCursor=True):
+            slicer.util.selectModule("Markups")
+
             markups = slicer.util.getModuleGui("Markups")
             newWidget = VertebraLocatorSecondaryWidget()
             # initialise paramter of new widget with those of widget from the
