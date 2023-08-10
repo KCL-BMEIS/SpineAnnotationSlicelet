@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>492</width>
-    <height>512</height>
+    <height>565</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -57,17 +57,50 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
-       <widget class="QLineEdit" name="filterLineEdit"/>
-      </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_8">
         <property name="text">
-         <string>filter args</string>
+         <string>Filter: frames</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="filterFramesLineEdit"/>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_10">
+        <property name="text">
+         <string>Filter: subject</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="filterSubjectLineEdit"/>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_11">
+        <property name="text">
+         <string>Filter: series_description</string>
         </property>
        </widget>
       </item>
       <item row="5" column="1">
+       <widget class="QLineEdit" name="filterSeriesLineEdit"/>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>XML Query File</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QLineEdit" name="xmlLineEdit"/>
+      </item>
+      <item row="8" column="1">
+       <widget class="QLineEdit" name="localFileLineEdit"/>
+      </item>
+      <item row="9" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QPushButton" name="pushButton">
@@ -88,13 +121,17 @@
         </item>
        </layout>
       </item>
-      <item row="4" column="1">
-       <widget class="QLineEdit" name="xmlLineEdit"/>
-      </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_9">
+      <item row="8" column="0">
+       <widget class="QLabel" name="label_5">
         <property name="text">
-         <string>XML Query File</string>
+         <string>Local file</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="Line" name="line">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
        </widget>
       </item>
@@ -107,6 +144,26 @@
       <string/>
      </property>
      <layout class="QGridLayout" name="gridLayout">
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="skipCheckBox">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Skip Images with annotations</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QPushButton" name="buttonInitialize">
+        <property name="text">
+         <string>Initialise Vertebrae</string>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="0">
        <widget class="QLabel" name="labelImage">
         <property name="enabled">
@@ -114,6 +171,16 @@
         </property>
         <property name="text">
          <string>Current Image</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QPushButton" name="buttonLoadAnnotation">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Load Existing Annotations</string>
         </property>
        </widget>
       </item>
@@ -127,16 +194,6 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Total Images</string>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="1">
        <widget class="QLabel" name="label_6">
         <property name="enabled">
@@ -147,64 +204,24 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_5">
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_4">
         <property name="enabled">
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>TextLabel</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="label_7">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>TextLabel</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QCheckBox" name="skipCheckBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Skip Images with annotations</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QPushButton" name="buttonInitialize">
-        <property name="text">
-         <string>Initialise Vertebrae</string>
+         <string>Total Images</string>
         </property>
        </widget>
       </item>
       <item row="4" column="1">
-       <widget class="QPushButton" name="buttonLoadAnnotation">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Load Existing Annotations</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
        <widget class="QPushButton" name="buttonCancel">
         <property name="text">
          <string>Cancel + Next Image</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
+      <item row="5" column="1">
        <widget class="QPushButton" name="buttonConfirm">
         <property name="text">
          <string>Confirm + Next Image</string>

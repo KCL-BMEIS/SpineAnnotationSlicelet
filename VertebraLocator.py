@@ -9,10 +9,11 @@ from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 from DICOMLib import DICOMUtils
 from copy import deepcopy
+from tempfile import TemporaryDirectory
 
 from __main__ import qt
 
-from xnat import SimpleXNAT
+from ImageIterator import SimpleXNAT, LocalFileIterator
 
 
 #
@@ -344,10 +345,11 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         self.logic = None
         self._parameterNode = None
         self._updatingGUIFromParameterNode = False
-        self._xnat = None
+        self._imageIterator = None
         self._currentImage = None
-        self._currentID = None
-        self._folder = None
+        self._currentAnnotation = None
+        # self._currentID = None
+        # self._folder = None
         self.setup()
 
     def setup(self):
@@ -403,16 +405,23 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
                                      self.updateParameterNodeFromGUI)
         self.ui.passwordLineEdit.connect("textChanged(QString)",
                                          self.updateParameterNodeFromGUI)
-        self.ui.filterLineEdit.connect("textChanged(QString)",
-                                       self.updateParameterNodeFromGUI)
+        self.ui.filterFramesLineEdit.connect("textChanged(QString)",
+                                             self.updateParameterNodeFromGUI)
+        self.ui.filterSubjectLineEdit.connect("textChanged(QString)",
+                                             self.updateParameterNodeFromGUI)
+        self.ui.filterSeriesLineEdit.connect("textChanged(QString)",
+                                             self.updateParameterNodeFromGUI)
         self.ui.xmlLineEdit.connect("textChanged(QString)",
                                     self.updateParameterNodeFromGUI)
+        self.ui.localFileLineEdit.connect("textChanged(QString)",
+                                          self.updateParameterNodeFromGUI)
         self.ui.skipCheckBox.connect("toggled(bool)",
                                      self.updateParameterNodeFromGUI)
 
         # Buttons
         self.ui.buttonLoad.connect('clicked(bool)', self.onLoadButton)
         self.ui.buttonInitialize.connect('clicked(bool)', self.onInitializeButton)
+        self.ui.buttonLoadAnnotation.connect('clicked(bool)', self.onLoadAnnotationButton)
         self.ui.buttonConfirm.connect('clicked(bool)', self.onConfirmButton)
         self.ui.buttonCancel.connect('clicked(bool)', self.onCancelButton)
 
@@ -511,7 +520,10 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         self.ui.userLineEdit.text = self._parameterNode.GetParameter("userLineEdit")
         self.ui.passwordLineEdit.text = self._parameterNode.GetParameter("passwordLineEdit")
         self.ui.xmlLineEdit.text = self._parameterNode.GetParameter("xmlLineEdit")
-        self.ui.filterLineEdit.text = self._parameterNode.GetParameter("filterLineEdit")
+        self.ui.filterSubjectLineEdit.text = self._parameterNode.GetParameter("filterSubjectLineEdit")
+        self.ui.filterFramesLineEdit.text = self._parameterNode.GetParameter("filterFramesLineEdit")
+        self.ui.filterSeriesLineEdit.text = self._parameterNode.GetParameter("filterSeriesLineEdit")
+        self.ui.localFileLineEdit.text = self._parameterNode.GetParameter("localFileLineEdit")
 
         self.ui.xnatBox.checked = self._parameterNode.GetParameter("xnatBoxCollapsed") == "true"
         self.ui.skipCheckBox.checked = self._parameterNode.GetParameter("skipCheckBox") == "true"
@@ -536,11 +548,16 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         self._parameterNode.SetParameter("userLineEdit", self.ui.userLineEdit.text)
         self._parameterNode.SetParameter("passwordLineEdit", self.ui.passwordLineEdit.text)
         self._parameterNode.SetParameter("xmlLineEdit", self.ui.xmlLineEdit.text)
-        self._parameterNode.SetParameter("filterLineEdit", self.ui.filterLineEdit.text)
+        self._parameterNode.SetParameter("filterSubjectLineEdit", self.ui.filterSubjectLineEdit.text)
+        self._parameterNode.SetParameter("filterFramesLineEdit", self.ui.filterFramesLineEdit.text)
+        self._parameterNode.SetParameter("filterSeriesLineEdit", self.ui.filterSeriesLineEdit.text)
+        self._parameterNode.SetParameter("localFileLineEdit", self.ui.localFileLineEdit.text)
         self._parameterNode.SetParameter("skipCheckBox",
                                          "true" if self.ui.skipCheckBox.checked else "false")
         self._parameterNode.SetParameter("xnatBoxCollapsed",
                                          "true" if self.ui.xnatBox.checked else "false")
+        if self._imageIterator is not None:
+            self._imageIterator.set_skip_annotated(self.ui.skipCheckBox.checked)
 
         self._parameterNode.EndModify(wasModified)
 
@@ -635,16 +652,32 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         """
         Establish the connection to an XNAT server with the provided user credentials.
         """
-        with slicer.util.tryWithErrorDisplay("Failed to connect to XNAT.",
+        with slicer.util.tryWithErrorDisplay("Failed to load data.",
                                              waitCursor=True):
-            if self._xnat is None:
-                # create xnat object
-                self._xnat = SimpleXNAT(self.ui.serverLineEdit.text,
-                                        user=self.ui.userLineEdit.text,
-                                        pwd=self.ui.passwordLineEdit.text,
-                                        xml_query_file=self.ui.xmlLineEdit.text)
+            if self.ui.serverLineEdit.text == '':
+                # use local file instead
+                self._imageIterator = LocalFileIterator(self.ui.localFileLineEdit.text)
                 # initialize iterator
-                iter(self._xnat)
+                iter(self._imageIterator)
+                self._imageIterator.set_skip_annotated(self.ui.skipCheckBox.checked)
+                # load first image
+                self._next()
+                self.onInitializeButton()
+                
+            else:
+                # if self._xnat is None:
+                # create xnat object
+                self._imageIterator = SimpleXNAT(self.ui.serverLineEdit.text,
+                                                 user=self.ui.userLineEdit.text,
+                                                 pwd=self.ui.passwordLineEdit.text,
+                                                 xml_query_file=self.ui.xmlLineEdit.text)
+
+                                        # frames=self.ui.filterFramesLineEdit.text
+                                        # subject_id=self.ui.filterSubjectLineEdit.text
+                                        # series_descripiton=self.ui.filterSeriesLineEdit.text
+
+                # initialize iterator
+                iter(self._imageIterator)
 
                 # instantiate the DICOM browser
                 slicer.util.selectModule("DICOM")
@@ -653,16 +686,16 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
                     slicer.util.selectModule("VertebraLocator")
                 else:
                     slicer.util.selectModule("Markups")
-            # load first image
-            self._next()
-            self.onInitializeButton()
+                # load first image
+                self._next()
+                self.onInitializeButton()
 
     def onConfirmButton(self):
         """
         Save and export markups to xnat, then load the next image if available
         when user clicks "Confirm | Next Image" button.
         """
-        with slicer.util.tryWithErrorDisplay("Failed to save annotations to XNAT.",
+        with slicer.util.tryWithErrorDisplay("Failed to save annotations.",
                                              waitCursor=True):
 
             # old way of creating one markup node per spinal region
@@ -700,9 +733,10 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
             # # upload merged annotations
             # self._xnat.upload_annotations(mergedFile)
 
-            path = os.path.join(self._folder, self._currentID + ".json")
-            slicer.util.saveNode(slicer.util.getNode("Vertebrae"), path)
-            self._xnat.upload_annotations(path)
+            with TemporaryDirectory() as tmp_dir:
+                annotation_path = os.path.join(tmp_dir, "vertebrae_annotation.json")
+                slicer.util.saveNode(slicer.util.getNode("Vertebrae"), annotation_path)
+                self._imageIterator.store_annotations(annotation_path)
 
             self._next()
             self.onInitializeButton()
@@ -713,35 +747,47 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         """
         with slicer.util.tryWithErrorDisplay("Failed to continue.",
                                              waitCursor=True):
-            # ToDo: desireable to save tag in XNAT, that image was processed
+            # ToDo: desirable to save tag in XNAT, that image was processed
             #  with no annotation to save
             self._next()
             self.onInitializeButton()
+
+    def onLoadAnnotationButton(self):
+        """
+        Load existing annotations from the XNAT server into the Slicer scene.
+        """
+        # ToDo:
+        with slicer.util.tryWithErrorDisplay("Failed to load annotations.",
+                                             waitCursor=True):
+            # delete current image to not litter the viewer
+            if self._currentAnnotation is not None:
+                slicer.mrmlScene.RemoveNode(slicer.util.getNode(self._currentAnnotation))
+
+            self._currentAnnotation = self._imageIterator.load_annotation()
+
+            # file = self._xnat.download_annotations()
+            # markupsNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsCurveNode")
+            # slicer.modules.markups.logic().ImportControlPointsFromCSV(markupsNode, file)
+            # markupsNode = load_annotation()
 
     def _next(self):
         """
         Utility function to load and switch to the next image.
         """
-        subject = next(self._xnat)
-        self._currentID = subject['session_label'].values[0]
-        self._folder = self._xnat.get_scan_dicom_folder()
-        # print(dicomFolder)
+        next(self._imageIterator)
+
+        self.ui.buttonLoadAnnotation.enabled = self._imageIterator.has_annotation()
 
         # delete current image to not litter the viewer
         if self._currentImage is not None:
             slicer.mrmlScene.RemoveNode(slicer.util.getNode(self._currentImage))
+        if self._currentAnnotation is not None:
+            slicer.mrmlScene.RemoveNode(slicer.util.getNode(self._currentAnnotation))
 
-        with DICOMUtils.TemporaryDICOMDatabase() as db:
-            DICOMUtils.importDicom(self._folder, db)
-            # create loadable volumes from dicom
-            slicer.modules.DICOMWidget.browserWidget.examineForLoading()
-            # load volume
-            patient_name = self._currentID.split("_", 1)[0]
-            loadedNodeIDs = DICOMUtils.loadPatientByName(patient_name)
-            # store reference so volume can be deleted
-            self._currentImage = loadedNodeIDs[0]
-            # update viewers to new volume
-            slicer.util.setSliceViewerLayers(background=self._currentImage)
+        self._currentImage = self._imageIterator.load_volume()
+
+        # update viewers to new volume
+        slicer.util.setSliceViewerLayers(background=self._currentImage)
 
 
 #
