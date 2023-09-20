@@ -288,7 +288,8 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             m.findChild("qMRMLCollapsibleButton", "displayCollapsibleButton").hide()
             m.findChild("qMRMLCollapsibleButton", "exportImportCollapsibleButton").hide()
             m.findChild("ctkCollapsibleButton", "measurementsCollapsibleButton").hide()
-            m.findChild("ctkExpandableWidget", "ResizableFrame").hide()
+            # m.findChild("ctkExpandableWidget", "ResizableFrame").hide()   # Node list
+            m.findChild("ctkExpandableWidget", "ResizableFrame").setFixedHeight(150)
 
             # hide more elements of the controlpoint sub-widget
             c = m.findChild("ctkCollapsibleButton", "controlPointsCollapsibleButton")
@@ -310,6 +311,9 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
             c.findChild("QLabel", "label").hide()
             c.findChild("QComboBox", "jumpModeComboBox").hide()
+
+            # if template has fixed controlpoints:
+            c.findChild("QPushButton", "deleteControlPointPushButton").hide()
 
             # activate slice intersection for the slice viewer
             c.findChild("ctkCheckBox", "sliceIntersectionsVisibilityCheckBox").checked = True
@@ -413,7 +417,7 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
                                              self.updateParameterNodeFromGUI)
         self.ui.xmlLineEdit.connect("textChanged(QString)",
                                     self.updateParameterNodeFromGUI)
-        self.ui.localFileLineEdit.connect("textChanged(QString)",
+        self.ui.localFolderLineEdit.connect("textChanged(QString)",
                                           self.updateParameterNodeFromGUI)
         self.ui.skipCheckBox.connect("toggled(bool)",
                                      self.updateParameterNodeFromGUI)
@@ -430,7 +434,7 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
 
         # hide default Slicer UI elements
         slicer.util.setModuleHelpSectionVisible(False)
-        slicer.util.setDataProbeVisible(False)
+        # slicer.util.setDataProbeVisible(False)
         slicer.util.setApplicationLogoVisible(False)
 
     def cleanup(self):
@@ -523,7 +527,7 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         self.ui.filterSubjectLineEdit.text = self._parameterNode.GetParameter("filterSubjectLineEdit")
         self.ui.filterFramesLineEdit.text = self._parameterNode.GetParameter("filterFramesLineEdit")
         self.ui.filterSeriesLineEdit.text = self._parameterNode.GetParameter("filterSeriesLineEdit")
-        self.ui.localFileLineEdit.text = self._parameterNode.GetParameter("localFileLineEdit")
+        self.ui.localFolderLineEdit.text = self._parameterNode.GetParameter("localFolderLineEdit")
 
         self.ui.xnatBox.checked = self._parameterNode.GetParameter("xnatBoxCollapsed") == "true"
         self.ui.skipCheckBox.checked = self._parameterNode.GetParameter("skipCheckBox") == "true"
@@ -551,7 +555,7 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         self._parameterNode.SetParameter("filterSubjectLineEdit", self.ui.filterSubjectLineEdit.text)
         self._parameterNode.SetParameter("filterFramesLineEdit", self.ui.filterFramesLineEdit.text)
         self._parameterNode.SetParameter("filterSeriesLineEdit", self.ui.filterSeriesLineEdit.text)
-        self._parameterNode.SetParameter("localFileLineEdit", self.ui.localFileLineEdit.text)
+        self._parameterNode.SetParameter("localFolderLineEdit", self.ui.localFolderLineEdit.text)
         self._parameterNode.SetParameter("skipCheckBox",
                                          "true" if self.ui.skipCheckBox.checked else "false")
         self._parameterNode.SetParameter("xnatBoxCollapsed",
@@ -570,79 +574,47 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         with slicer.util.tryWithErrorDisplay("Failed to initialise Markups.",
                                              waitCursor=True):
 
-            defaultDescription = "none"     # default for description field of control points
             markupsLogic = slicer.modules.markups.logic()
 
-            # region labels and default numbers for the spinal regions
-            spineRegions = ["C", "T", "L", "S"]
-            spineRegionSizes = [7, 12, 5, 5]
+            # load template file
+            template_path = os.path.join(os.path.dirname(__file__),
+                                         "vertebra_landmark_template.mrk.json")
+            nodeID = markupsLogic.LoadMarkups(template_path)
 
-            # remove previously created markup node, if exists
-            slicer.mrmlScene.RemoveNode(slicer.mrmlScene.GetFirstNodeByName("Vertebrae"))
+            slicer.util.getNode(nodeID).SetName("Vertebra L1")
+            slicer.util.getNode(nodeID).SetDescription("please rename accordingly")
 
-            # create new markup node
-            nodeID = markupsLogic.AddNewFiducialNode("Vertebrae")
-            slicer.util.getNode(nodeID).SetControlPointLabelFormat("%N%d")
-            slicer.util.getNode(nodeID).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
-            slicer.util.getNode(nodeID).SetDescription(
-                "List for all vertebra annotations, one controlpoint per center of vertebral body")
-
-            # create one control point per vertebra
-            i = 0   # counter for all set controlpoints/vertebrae
-            for region, n in zip(spineRegions, spineRegionSizes):
-                for j in range(n):
-                    currentNode = slicer.mrmlScene.GetNodeByID(nodeID)
-                    currentNode.AddControlPoint(0, 0, 0)
-                    currentNode.UnsetNthControlPointPosition(i)
-                    currentNode.SetNthControlPointLabel(i, region+str(j+1))
-                    currentNode.SetNthControlPointDescription(i, defaultDescription)
-                    i += 1
+            # Move away from static definition to using template files
+            #
+            # defaultDescription = "none"     # default for description field of control points
+            # # region labels and default numbers for the spinal regions
+            # spineRegions = ["C", "T", "L", "S"]
+            # spineRegionSizes = [7, 12, 5, 5]
+            #
+            # # remove previously created markup node, if exists
+            # slicer.mrmlScene.RemoveNode(slicer.mrmlScene.GetFirstNodeByName("Vertebrae"))
+            #
+            # # create new markup node
+            # nodeID = markupsLogic.AddNewFiducialNode("Vertebrae")
+            # slicer.util.getNode(nodeID).SetControlPointLabelFormat("%N%d")
+            # slicer.util.getNode(nodeID).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
+            # slicer.util.getNode(nodeID).SetDescription(
+            #   "List for all vertebra annotations, one controlpoint per center of vertebral body")
+            #
+            # # create one control point per vertebra
+            # i = 0   # counter for all set controlpoints/vertebrae
+            # for region, n in zip(spineRegions, spineRegionSizes):
+            #     for j in range(n):
+            #         currentNode = slicer.mrmlScene.GetNodeByID(nodeID)
+            #         currentNode.AddControlPoint(0, 0, 0)
+            #         currentNode.UnsetNthControlPointPosition(i)
+            #         currentNode.SetNthControlPointLabel(i, region+str(j+1))
+            #         currentNode.SetNthControlPointDescription(i, defaultDescription)
+            #         i += 1
 
             # activate persistent place mode for control points
             interactionNode = slicer.util.getNodesByClass("vtkMRMLInteractionNode")
             markupsLogic.StartPlaceMode(interactionNode)
-
-            # old way of creating one markup node per spinal region
-            #
-            # for markup in ["C", "T", "L", "S"]:
-            #     slicer.mrmlScene.RemoveNode(slicer.mrmlScene.GetFirstNodeByName(markup))
-            #
-            # idC = markupsLogic.AddNewFiducialNode("C")
-            # slicer.util.getNode(idC).SetControlPointLabelFormat("%N%d")
-            # # slicer.util.getNode(idC).GetDisplayNode().SetActiveColor()
-            # slicer.util.getNode(idC).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
-            # for i in range(7):
-            #     slicer.util.getNode(idC).AddControlPoint(0, 0, 0)
-            #     slicer.util.getNode(idC).UnsetNthControlPointPosition(i)
-            #     slicer.util.getNode(idC).SetNthControlPointDescription(i, defaultDescription)
-            # slicer.util.getNode(idC).SetDescription("Cervical Spine")
-            #
-            # idT = markupsLogic.AddNewFiducialNode("T")
-            # slicer.util.getNode(idT).SetControlPointLabelFormat("%N%d")
-            # slicer.util.getNode(idT).GetDisplayNode().SetSelectedColor(1.0, 0.25, 0.5)
-            # for i in range(12):
-            #     slicer.util.getNode(idT).AddControlPoint(0, 0, 0)
-            #     slicer.util.getNode(idT).UnsetNthControlPointPosition(i)
-            #     slicer.util.getNode(idT).SetNthControlPointDescription(i, defaultDescription)
-            # slicer.util.getNode(idT).SetDescription("Thoracic Spine")
-            #
-            # idL = markupsLogic.AddNewFiducialNode("L")
-            # slicer.util.getNode(idL).SetControlPointLabelFormat("%N%d")
-            # slicer.util.getNode(idL).GetDisplayNode().SetSelectedColor(0.25, 0.5, 1.0)
-            # for i in range(5):
-            #     slicer.util.getNode(idL).AddControlPoint(0, 0, 0)
-            #     slicer.util.getNode(idL).UnsetNthControlPointPosition(i)
-            #     slicer.util.getNode(idL).SetNthControlPointDescription(i, defaultDescription)
-            # slicer.util.getNode(idL).SetDescription("Lumbar Spine")
-            #
-            # idS = markupsLogic.AddNewFiducialNode("S")
-            # slicer.util.getNode(idS).SetControlPointLabelFormat("%N%d")
-            # slicer.util.getNode(idS).GetDisplayNode().SetSelectedColor(0.25, 1.0, 0.5)
-            # for i in range(3):
-            #     slicer.util.getNode(idS).AddControlPoint(0, 0, 0)
-            #     slicer.util.getNode(idS).UnsetNthControlPointPosition(i)
-            #     slicer.util.getNode(idS).SetNthControlPointDescription(i, defaultDescription)
-            # slicer.util.getNode(idS).SetDescription("Sacrum")
 
             # ToDo:
             # Node List: SetDescription seems bugged and resets
@@ -656,7 +628,7 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
                                              waitCursor=True):
             if self.ui.serverLineEdit.text == '':
                 # use local file instead
-                self._imageIterator = LocalFileIterator(self.ui.localFileLineEdit.text)
+                self._imageIterator = LocalFileIterator(self.ui.localFolderLineEdit.text)
                 # initialize iterator
                 iter(self._imageIterator)
                 self._imageIterator.set_skip_annotated(self.ui.skipCheckBox.checked)
