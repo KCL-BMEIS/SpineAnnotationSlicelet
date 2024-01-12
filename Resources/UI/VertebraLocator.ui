@@ -6,13 +6,16 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>492</width>
-    <height>565</height>
+    <width>549</width>
+    <height>754</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="ctkCollapsibleButton" name="xnatBox">
+    <widget class="ctkCollapsibleButton" name="dataSourceBox">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
      <property name="text">
       <string>Data Source</string>
      </property>
@@ -23,105 +26,96 @@
       <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
-      <item row="1" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>XNAT Server URL</string>
+      <item row="7" column="0" colspan="2">
+       <widget class="QGroupBox" name="xnatBox">
+        <property name="minimumSize">
+         <size>
+          <width>136</width>
+          <height>252</height>
+         </size>
         </property>
+        <property name="title">
+         <string/>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="4" column="1">
+          <widget class="QLineEdit" name="filterFramesLineEdit"/>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Password</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>XNAT Server URL</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
+          <widget class="QLabel" name="label_11">
+           <property name="text">
+            <string>Filter: series_description</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QLineEdit" name="filterSubjectLineEdit"/>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLineEdit" name="userLineEdit"/>
+         </item>
+         <item row="6" column="1">
+          <widget class="QLineEdit" name="filterSeriesLineEdit"/>
+         </item>
+         <item row="3" column="1">
+          <widget class="QLineEdit" name="passwordLineEdit">
+           <property name="echoMode">
+            <enum>QLineEdit::Password</enum>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>User</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="serverLineEdit"/>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_8">
+           <property name="text">
+            <string>Filter: frames</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_10">
+           <property name="text">
+            <string>Filter: subject</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="0">
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>XML Query File</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="1">
+          <widget class="QLineEdit" name="xmlLineEdit"/>
+         </item>
+        </layout>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="serverLineEdit"/>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>User</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLineEdit" name="userLineEdit"/>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>Password</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QLineEdit" name="passwordLineEdit">
-        <property name="echoMode">
-         <enum>QLineEdit::Password</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_8">
-        <property name="text">
-         <string>Filter: frames</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QLineEdit" name="filterFramesLineEdit"/>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="label_10">
-        <property name="text">
-         <string>Filter: subject</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
-       <widget class="QLineEdit" name="filterSubjectLineEdit"/>
-      </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label_11">
-        <property name="text">
-         <string>Filter: series_description</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="QLineEdit" name="filterSeriesLineEdit"/>
-      </item>
-      <item row="7" column="0">
-       <widget class="QLabel" name="label_9">
-        <property name="text">
-         <string>XML Query File</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="1">
-       <widget class="QLineEdit" name="xmlLineEdit"/>
-      </item>
-      <item row="8" column="1">
-       <widget class="Line" name="line">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="0">
-       <widget class="QLabel" name="label_5">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Local Folder</string>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="1">
-       <widget class="QLineEdit" name="localFolderLineEdit">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="1">
+      <item row="11" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QPushButton" name="pushButton">
@@ -142,12 +136,118 @@
         </item>
        </layout>
       </item>
-      <item row="0" column="0">
-       <widget class="QRadioButton" name="localFolderRadioButton">
-        <property name="text">
-         <string>Use Local Folder</string>
+      <item row="10" column="0" colspan="2">
+       <widget class="QGroupBox" name="localBox">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>66</height>
+         </size>
         </property>
+        <property name="title">
+         <string/>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_3">
+         <property name="leftMargin">
+          <number>11</number>
+         </property>
+         <property name="topMargin">
+          <number>3</number>
+         </property>
+         <property name="rightMargin">
+          <number>3</number>
+         </property>
+         <property name="bottomMargin">
+          <number>3</number>
+         </property>
+         <property name="horizontalSpacing">
+          <number>7</number>
+         </property>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_5">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>Local Folder</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="localFolderLineEdit">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
+      </item>
+      <item row="11" column="0">
+       <spacer name="horizontalSpacer_2">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="3" column="0" colspan="2">
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <property name="spacing">
+         <number>7</number>
+        </property>
+        <property name="sizeConstraint">
+         <enum>QLayout::SetDefaultConstraint</enum>
+        </property>
+        <item>
+         <spacer name="horizontalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="xnatRadioButton">
+          <property name="text">
+           <string>Use XNAT Server</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="localFolderRadioButton">
+          <property name="text">
+           <string>Use Local Folder</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>
@@ -158,47 +258,38 @@
       <string/>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="2" column="1">
-       <widget class="QCheckBox" name="skipCheckBox">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
+      <item row="0" column="1">
+       <widget class="QLabel" name="label_7">
         <property name="text">
-         <string>Skip Images with annotations</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
+         <string>Annotation Template File</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="0">
+      <item row="4" column="1">
        <widget class="QPushButton" name="buttonInitialize">
         <property name="text">
          <string>Initialise Landmarks</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="labelImage">
-        <property name="enabled">
-         <bool>false</bool>
+      <item row="0" column="2">
+       <widget class="QComboBox" name="annotationFileComboBox">
+        <property name="currentText">
+         <string/>
         </property>
-        <property name="text">
-         <string>Current Image</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QPushButton" name="buttonLoadAnnotation">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Load Existing Annotations</string>
+        <property name="placeholderText">
+         <string>Select an available template file</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
+      <item row="6" column="2">
+       <widget class="QPushButton" name="buttonConfirm">
+        <property name="text">
+         <string>Confirm + Next Image</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
        <widget class="QLabel" name="labelImageID">
         <property name="enabled">
          <bool>false</bool>
@@ -209,6 +300,23 @@
        </widget>
       </item>
       <item row="1" column="1">
+       <widget class="QLabel" name="labelImage">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Current Image</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="2">
+       <widget class="QPushButton" name="buttonCancel">
+        <property name="text">
+         <string>Cancel + Next Image</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
        <widget class="QLabel" name="label_6">
         <property name="enabled">
          <bool>false</bool>
@@ -218,7 +326,7 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
+      <item row="2" column="1">
        <widget class="QLabel" name="label_4">
         <property name="enabled">
          <bool>false</bool>
@@ -228,17 +336,26 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
-       <widget class="QPushButton" name="buttonCancel">
+      <item row="4" column="2">
+       <widget class="QPushButton" name="buttonLoadAnnotation">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
-         <string>Cancel + Next Image</string>
+         <string>Load Existing Annotations</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
-       <widget class="QPushButton" name="buttonConfirm">
+      <item row="3" column="2">
+       <widget class="QCheckBox" name="skipCheckBox">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
         <property name="text">
-         <string>Confirm + Next Image</string>
+         <string>Skip Images with annotations</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -362,7 +479,7 @@
   <connection>
    <sender>VertebraLocator</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>xnatBox</receiver>
+   <receiver>dataSourceBox</receiver>
    <slot>click()</slot>
    <hints>
     <hint type="sourcelabel">

@@ -87,6 +87,8 @@ class LocalFileIterator(ImageIterator):
         :param annotation_file: path to annotation file temporarily saved via
         Slicer
         """
+        # ToDo: strategy to store multiple/all annotation files
+        # ToDo: track all annotation files created through this tool
         dst = os.path.join(self._current_scan_folder,
                            self._current_scan.rstrip('.nii.gz') + '.json')
         print(f"saving: {dst}")

@@ -309,8 +309,9 @@ class VertebraLocatorWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             c.findChild("QLabel", "label_coords").hide()
             c.findChild("QComboBox", "coordinatesComboBox").hide()
             c.findChild("ctkCollapsibleGroupBox", "advancedCollapsibleButton").hide()
-            c.findChild("QLabel", "label").hide()
-            c.findChild("QComboBox", "jumpModeComboBox").hide()
+            # use jump
+            # c.findChild("QLabel", "label").hide()
+            # c.findChild("QComboBox", "jumpModeComboBox").hide()
 
             # if template has fixed controlpoints:
             c.findChild("QPushButton", "deleteControlPointPushButton").hide()
@@ -370,13 +371,16 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         layout.addWidget(uiWidget)
         self.setLayout(layout)
 
+        # Did not manage to add needed module
+        # controlPointsCollapsibleButton is not made available (yet)
+        # instead, we will add our widget to hijack existing markup module
+        
         # Info on available MarkupWidgets:
         # qMRMLMarkupsDisplayNodeWidget = Display box
         # qMRMLMarkupsInteractionHandleWidget = Display - Interaction Handle
         # qMRMLMarkupsToolBar = markup node selector dropdown
         # qSlicerMarkupsPlaceWidget = buttons for placement mode, delete etc.
         # qSlicerSimpleMarkupsWidget = label list and control buttons
-        # controlPointsCollapsibleButton is not made available (yet)
 
         # widget = slicer.qSlicerSimpleMarkupsWidget()
         # self.layout.addWidget(widget)
@@ -402,25 +406,24 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
 
         # These connections ensure that whenever user changes some settings on
         # the GUI, that is saved in the MRML scene (in the selected parameter node).
-        self.ui.xnatBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
-        self.ui.serverLineEdit.connect("textChanged(QString)",
-                                       self.updateParameterNodeFromGUI)
-        self.ui.userLineEdit.connect("textChanged(QString)",
-                                     self.updateParameterNodeFromGUI)
-        self.ui.passwordLineEdit.connect("textChanged(QString)",
-                                         self.updateParameterNodeFromGUI)
-        self.ui.filterFramesLineEdit.connect("textChanged(QString)",
-                                             self.updateParameterNodeFromGUI)
-        self.ui.filterSubjectLineEdit.connect("textChanged(QString)",
-                                             self.updateParameterNodeFromGUI)
-        self.ui.filterSeriesLineEdit.connect("textChanged(QString)",
-                                             self.updateParameterNodeFromGUI)
-        self.ui.xmlLineEdit.connect("textChanged(QString)",
-                                    self.updateParameterNodeFromGUI)
-        self.ui.localFolderLineEdit.connect("textChanged(QString)",
-                                          self.updateParameterNodeFromGUI)
-        self.ui.skipCheckBox.connect("toggled(bool)",
-                                     self.updateParameterNodeFromGUI)
+        upd = self.updateParameterNodeFromGUI
+
+        self.ui.dataSourceBox.connect("toggled(bool)", upd)
+
+        self.ui.localFolderRadioButton.connect("toggled(bool)", upd)
+
+        self.ui.serverLineEdit.connect("textChanged(QString)", upd)
+        self.ui.userLineEdit.connect("textChanged(QString)", upd)
+        self.ui.passwordLineEdit.connect("textChanged(QString)", upd)
+        self.ui.filterFramesLineEdit.connect("textChanged(QString)", upd)
+        self.ui.filterSubjectLineEdit.connect("textChanged(QString)", upd)
+        self.ui.filterSeriesLineEdit.connect("textChanged(QString)", upd)
+        self.ui.xmlLineEdit.connect("textChanged(QString)", upd)
+
+        self.ui.localFolderLineEdit.connect("textChanged(QString)", upd)
+        self.ui.annotationFileComboBox.connect("currentIndexChanged(int)", upd)
+        
+        self.ui.skipCheckBox.connect("toggled(bool)", upd)
 
         # Buttons
         self.ui.buttonLoad.connect('clicked(bool)', self.onLoadButton)
@@ -520,16 +523,32 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         # (it could cause infinite loop)
         self._updatingGUIFromParameterNode = True
 
+        self.ui.dataSourceBox.checked = self._parameterNode.GetParameter("dataSourceBoxCollapsed") == "true"
+
+        local_folder = self._parameterNode.GetParameter("localRadioButton") == "true"
+        self.ui.localFolderRadioButton.checked = local_folder
+        self.ui.localBox.enabled = local_folder
+
+        self.ui.xnatRadioButton.checked = not local_folder
+        self.ui.xnatBox.enabled = not local_folder
+
         self.ui.serverLineEdit.text = self._parameterNode.GetParameter("serverLineEdit")
         self.ui.userLineEdit.text = self._parameterNode.GetParameter("userLineEdit")
         self.ui.passwordLineEdit.text = self._parameterNode.GetParameter("passwordLineEdit")
-        self.ui.xmlLineEdit.text = self._parameterNode.GetParameter("xmlLineEdit")
         self.ui.filterSubjectLineEdit.text = self._parameterNode.GetParameter("filterSubjectLineEdit")
         self.ui.filterFramesLineEdit.text = self._parameterNode.GetParameter("filterFramesLineEdit")
         self.ui.filterSeriesLineEdit.text = self._parameterNode.GetParameter("filterSeriesLineEdit")
+        self.ui.xmlLineEdit.text = self._parameterNode.GetParameter("xmlLineEdit")
+
         self.ui.localFolderLineEdit.text = self._parameterNode.GetParameter("localFolderLineEdit")
 
-        self.ui.xnatBox.checked = self._parameterNode.GetParameter("xnatBoxCollapsed") == "true"
+        annotationFileTemplates = self._parameterNode.GetParameter("annotationFileTemplates").split(";")
+        if self.ui.annotationFileComboBox.count < 1:
+            self.ui.annotationFileComboBox.addItems(annotationFileTemplates)
+        currentAnnotation = self._parameterNode.GetParameter("annotationTemplate")
+        currentAnnotationIdx = self.ui.annotationFileComboBox.findText(currentAnnotation)
+        self.ui.annotationFileComboBox.setCurrentIndex(currentAnnotationIdx)
+        
         self.ui.skipCheckBox.checked = self._parameterNode.GetParameter("skipCheckBox") == "true"
 
         # All the GUI updates are done
@@ -548,22 +567,31 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         # Modify all properties in a single batch
         wasModified = self._parameterNode.StartModify()
 
+        self._parameterNode.SetParameter("localRadioButton",
+                                         "true" if self.ui.localFolderRadioButton.checked else "false")
+
         self._parameterNode.SetParameter("serverLineEdit", self.ui.serverLineEdit.text)
         self._parameterNode.SetParameter("userLineEdit", self.ui.userLineEdit.text)
         self._parameterNode.SetParameter("passwordLineEdit", self.ui.passwordLineEdit.text)
-        self._parameterNode.SetParameter("xmlLineEdit", self.ui.xmlLineEdit.text)
         self._parameterNode.SetParameter("filterSubjectLineEdit", self.ui.filterSubjectLineEdit.text)
         self._parameterNode.SetParameter("filterFramesLineEdit", self.ui.filterFramesLineEdit.text)
         self._parameterNode.SetParameter("filterSeriesLineEdit", self.ui.filterSeriesLineEdit.text)
+        self._parameterNode.SetParameter("xmlLineEdit", self.ui.xmlLineEdit.text)
+
         self._parameterNode.SetParameter("localFolderLineEdit", self.ui.localFolderLineEdit.text)
+        annotationName = self.ui.annotationFileComboBox.currentText 
+        self._parameterNode.SetParameter("annotationTemplate", annotationName)
+        
         self._parameterNode.SetParameter("skipCheckBox",
                                          "true" if self.ui.skipCheckBox.checked else "false")
-        self._parameterNode.SetParameter("xnatBoxCollapsed",
-                                         "true" if self.ui.xnatBox.checked else "false")
+        self._parameterNode.SetParameter("dataSourceBoxCollapsed",
+                                         "true" if self.ui.dataSourceBox.checked else "false")
         if self._imageIterator is not None:
             self._imageIterator.set_skip_annotated(self.ui.skipCheckBox.checked)
 
         self._parameterNode.EndModify(wasModified)
+
+        self.updateGUIFromParameterNode()
 
     def onInitializeButton(self):
         """
@@ -578,46 +606,20 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
 
             # load template file
             template_path = os.path.join(os.path.dirname(__file__),
-                                         "vertebra_landmark_template.mrk.json")
+                                         "landmark_templates",
+                                         self._parameterNode.GetParameter("annotationTemplate"))
+            
             nodeID = markupsLogic.LoadMarkups(template_path)
 
-            slicer.util.getNode(nodeID).SetName("Vertebra L1")
+            slicer.util.getNode(nodeID).SetName("Vertebra L1/ Subject ABC123")
             slicer.util.getNode(nodeID).SetDescription("please rename accordingly")
-
-            # Move away from static definition to using template files
-            #
-            # defaultDescription = "none"     # default for description field of control points
-            # # region labels and default numbers for the spinal regions
-            # spineRegions = ["C", "T", "L", "S"]
-            # spineRegionSizes = [7, 12, 5, 5]
-            #
-            # # remove previously created markup node, if exists
-            # slicer.mrmlScene.RemoveNode(slicer.mrmlScene.GetFirstNodeByName("Vertebrae"))
-            #
-            # # create new markup node
-            # nodeID = markupsLogic.AddNewFiducialNode("Vertebrae")
-            # slicer.util.getNode(nodeID).SetControlPointLabelFormat("%N%d")
-            # slicer.util.getNode(nodeID).GetDisplayNode().SetSelectedColor(0.8, 0.8, 0.2)
-            # slicer.util.getNode(nodeID).SetDescription(
-            #   "List for all vertebra annotations, one controlpoint per center of vertebral body")
-            #
-            # # create one control point per vertebra
-            # i = 0   # counter for all set controlpoints/vertebrae
-            # for region, n in zip(spineRegions, spineRegionSizes):
-            #     for j in range(n):
-            #         currentNode = slicer.mrmlScene.GetNodeByID(nodeID)
-            #         currentNode.AddControlPoint(0, 0, 0)
-            #         currentNode.UnsetNthControlPointPosition(i)
-            #         currentNode.SetNthControlPointLabel(i, region+str(j+1))
-            #         currentNode.SetNthControlPointDescription(i, defaultDescription)
-            #         i += 1
 
             # activate persistent place mode for control points
             interactionNode = slicer.util.getNodesByClass("vtkMRMLInteractionNode")
             markupsLogic.StartPlaceMode(interactionNode)
 
             # ToDo:
-            # Node List: SetDescription seems bugged and resets
+            # Node List: SetDescription seems to reset sometimes
             # register shortcuts for extra functionality in markups?
 
     def onLoadButton(self):
@@ -626,8 +628,8 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         """
         with slicer.util.tryWithErrorDisplay("Failed to load data.",
                                              waitCursor=True):
-            if self.ui.serverLineEdit.text == '':
-                # use local file instead
+            if self._parameterNode.GetParameter("localRadioButton") == "true":
+                # use local files
                 self._imageIterator = LocalFileIterator(self.ui.localFolderLineEdit.text)
                 # initialize iterator
                 iter(self._imageIterator)
@@ -670,41 +672,6 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         with slicer.util.tryWithErrorDisplay("Failed to save annotations.",
                                              waitCursor=True):
 
-            # old way of creating one markup node per spinal region
-            # # JSON version
-            # mergedFile = os.path.join(self._folder, self._currentID + ".json")
-            # files = []
-            # for markup in ["C", "T", "L", "S"]:
-            #     path = os.path.join(self._folder, self._currentID+"_"+markup+".json")
-            #     files.append(path)
-            #     slicer.util.saveNode(slicer.util.getNode(markup), path)
-            # self.logic.mergeMarkupJSON(files, mergedFile)
-            #
-            # # CSV version
-            # mergedFile = os.path.join(self._folder, self._currentID + ".csv")
-            # markupsLogic = slicer.modules.markups.logic()
-            # combined_csv = []
-            # for markup in ["C", "T", "L", "S"]:
-            #     path = os.path.join(self._folder, self._currentID+"_"+markup+".csv")
-            #     markupsLogic.ExportControlPointsToCSV(slicer.util.getNode(markup), path)
-            #
-            #     with open(path, newline='') as file:
-            #         reader = csv.reader(file)
-            #         for i, row in enumerate(reader):
-            #             print(i)
-            #             if not markup == "C" and i==0:
-            #                 continue
-            #             print(row)
-            #             combined_csv.append(row)
-            #
-            # with open(mergedFile, 'w', newline='') as file:
-            #     writer = csv.writer(file)
-            #     writer.writerows(combined_csv)
-            # print(combined_csv)
-            #
-            # # upload merged annotations
-            # self._xnat.upload_annotations(mergedFile)
-
             with TemporaryDirectory() as tmp_dir:
                 annotation_path = os.path.join(tmp_dir, "vertebrae_annotation.json")
                 slicer.util.saveNode(slicer.util.getNode("Vertebrae"), annotation_path)
@@ -731,7 +698,7 @@ class VertebraLocatorSecondaryWidget(qt.QWidget, VTKObservationMixin):
         # ToDo:
         with slicer.util.tryWithErrorDisplay("Failed to load annotations.",
                                              waitCursor=True):
-            # delete current image to not litter the viewer
+            # delete current annotation to not litter the viewer
             if self._currentAnnotation is not None:
                 slicer.mrmlScene.RemoveNode(slicer.util.getNode(self._currentAnnotation))
 
@@ -788,90 +755,102 @@ class VertebraLocatorLogic(ScriptedLoadableModuleLogic):
         """
         if not parameterNode.GetParameter("serverLineEdit"):
             parameterNode.SetParameter("serverLineEdit", "https://")
+            
+        if not parameterNode.GetParameter("annotationFileTemplates"):            
+            template_path = os.path.join(os.path.dirname(__file__), "landmark_templates")            
+            templates = [f for f in os.listdir(template_path) if f.endswith(".mrk.json")]
+            parameterNode.SetParameter("annotationFileTemplates", ";".join(templates))
+            
+        if not parameterNode.GetParameter("annotationTemplate"):
+            templates = parameterNode.GetParameter("annotationTemplate")          
+            currentAnnotationTemplate = templates[0] if len(templates) > 1 else ""
+            parameterNode.SetParameter("annotationTemplate", currentAnnotationTemplate)
+            
+        parameterNode.SetParameter("dataSourceBoxCollapsed", "true")
 
-    def mergeMarkupJSON(self, files, mergedFilePath=None):
-        """
-        Merge Markup JSON files provided as a list of paths into a single file.
-        This way, control points of separate lists will be merged into a single
-        list and stay like that when directly loaded into Slicer. For splitting
-        a merged file back into separate lists, see splitMarkupJSON().
-        Can be used without GUI widget.
-        :param files: a list of JSON file paths
-        :param mergedFilePath: file path for the resulting merged JSON file
+    # def mergeMarkupJSON(self, files, mergedFilePath=None):
+    #     """
+    #     Merge Markup JSON files provided as a list of paths into a single file.
+    #     This way, control points of separate lists will be merged into a single
+    #     list and stay like that when directly loaded into Slicer. For splitting
+    #     a merged file back into separate lists, see splitMarkupJSON().
+    #     Can be used without GUI widget.
+    #     :param files: a list of JSON file paths
+    #     :param mergedFilePath: file path for the resulting merged JSON file
 
-        :returns: the path to the JSON file containing the merged control points
-        """
-        # ToDo: Check for repeating names of control points from different lists
-        # ToDo: Store additional information of the individual JSON files
+    #     :returns: the path to the JSON file containing the merged control points
+    #     """
+    #     # ToDo: Check for repeating names of control points from different lists
+    #     # ToDo: Store additional information of the individual JSON files
 
-        allControlPoints = []
-        for file in files:
-            with open(file) as json_file:
-                data = json.load(json_file)
-                if data['markups'][0]['type'] != "Fiducial":
-                    raise ValueError("Input file is not a Fiducial type Markup")
-                for controlPoint in data['markups'][0]['controlPoints']:
-                    allControlPoints.append(controlPoint)
+    #     allControlPoints = []
+    #     for file in files:
+    #         with open(file) as json_file:
+    #             data = json.load(json_file)
+    #             if data['markups'][0]['type'] != "Fiducial":
+    #                 raise ValueError("Input file is not a Fiducial type Markup")
+    #             for controlPoint in data['markups'][0]['controlPoints']:
+    #                 allControlPoints.append(controlPoint)
 
-        # overwrite control points of last JSON to create merged markup
-        data['markups'][0]['controlPoints'] = allControlPoints
+    #     # overwrite control points of last JSON to create merged markup
+    #     data['markups'][0]['controlPoints'] = allControlPoints
 
-        # store merged file
-        if mergedFilePath is None:
-            mergedFilePath = os.path.join(os.path.dirname(files[-1]),
-                                          files[-1].rpartition('_')[0] + '_merged.json')
-        with open(mergedFilePath, 'w') as outfile:
-            json.dump(data, outfile, indent=4)
-        return mergedFilePath
+    #     # store merged file
+    #     if mergedFilePath is None:
+    #         mergedFilePath = os.path.join(os.path.dirname(files[-1]),
+    #                                       files[-1].rpartition('_')[0] + '_merged.json')
+    #     with open(mergedFilePath, 'w') as outfile:
+    #         json.dump(data, outfile, indent=4)
+    #     return mergedFilePath
 
-    def splitMarkupJSON(self, file, splitFiles=None):
-        """
-        Split a Markup JSON file into multiple files, based on the control
-        point names. Splitting into C, T, L, and S vertebral regions.
+    # def splitMarkupJSON(self, file, splitFiles=None):
+    #     """
+    #     Split a Markup JSON file into multiple files, based on the control
+    #     point names. Splitting into C, T, L, and S vertebral regions.
 
-        :param file: path to a file which is to be split
-        :param splitFiles: a list of paths for the resulting split JSON files
-        :return: a list of paths to files with the split annotation files
-        """
-        cControlPoints = []
-        tControlPoints = []
-        lControlPoints = []
-        sControlPoints = []
-        with open(file) as json_file:
-            data = json.load(json_file)
-            if data['markups'][0]['type'] != "Fiducial":
-                raise ValueError("Input file is not a Fiducial type Markup")
-            for controlPoint in data['markups'][0]['controlPoints']:
-                if controlPoint['label'].startswith("C"):
-                    cControlPoints.append(controlPoint)
-                if controlPoint['label'].startswith("T"):
-                    tControlPoints.append(controlPoint)
-                if controlPoint['label'].startswith("L"):
-                    lControlPoints.append(controlPoint)
-                if controlPoint['label'].startswith("S"):
-                    sControlPoints.append(controlPoint)
-        allData = [deepcopy(data) for _ in range(4)]
-        allData[0]['markups'][0]['controlPoints'] = cControlPoints
-        allData[1]['markups'][0]['controlPoints'] = tControlPoints
-        allData[2]['markups'][0]['controlPoints'] = lControlPoints
-        allData[3]['markups'][0]['controlPoints'] = sControlPoints
+    #     :param file: path to a file which is to be split
+    #     :param splitFiles: a list of paths for the resulting split JSON files
+    #     :return: a list of paths to files with the split annotation files
+    #     """
+    #     cControlPoints = []
+    #     tControlPoints = []
+    #     lControlPoints = []
+    #     sControlPoints = []
+    #     with open(file) as json_file:
+    #         data = json.load(json_file)
+    #         if data['markups'][0]['type'] != "Fiducial":
+    #             raise ValueError("Input file is not a Fiducial type Markup")
+    #         for controlPoint in data['markups'][0]['controlPoints']:
+    #             if controlPoint['label'].startswith("C"):
+    #                 cControlPoints.append(controlPoint)
+    #             if controlPoint['label'].startswith("T"):
+    #                 tControlPoints.append(controlPoint)
+    #             if controlPoint['label'].startswith("L"):
+    #                 lControlPoints.append(controlPoint)
+    #             if controlPoint['label'].startswith("S"):
+    #                 sControlPoints.append(controlPoint)
+    #     allData = [deepcopy(data) for _ in range(4)]
+    #     allData[0]['markups'][0]['controlPoints'] = cControlPoints
+    #     allData[1]['markups'][0]['controlPoints'] = tControlPoints
+    #     allData[2]['markups'][0]['controlPoints'] = lControlPoints
+    #     allData[3]['markups'][0]['controlPoints'] = sControlPoints
 
-        # ToDo: recover additional markup data stored in the merged file
+    #     # ToDo: recover additional markup data stored in the merged file
 
-        # store split files
-        if splitFiles is None:
-            creatingResultPaths = True
-            splitFiles = []
-            for i, section in enumerate(["C", "T", "L", "S"]):
-                if creatingResultPaths:
-                    path = os.path.join(file.rpartition('.')[0]+'_test_'+section+'.json')
-                    print(path)
-                    splitFiles.append(path)
+    #     # store split files
+    #     if splitFiles is None:
+    #         creatingResultPaths = True
+    #         splitFiles = []
+    #         for i, section in enumerate(["C", "T", "L", "S"]):
+    #             if creatingResultPaths:
+    #                 path = os.path.join(file.rpartition('.')[0]+'_test_'+section+'.json')
+    #                 print(path)
+    #                 splitFiles.append(path)
 
-                with open(splitFiles[i], 'w') as outfile:
-                    json.dump(allData[i], outfile, indent=4)
+    #             with open(splitFiles[i], 'w') as outfile:
+    #                 json.dump(allData[i], outfile, indent=4)
 
-        return splitFiles
+    #     return splitFiles
 
 
 #

@@ -8,7 +8,7 @@
             "locked": false,
             "fixedNumberOfControlPoints": true,
             "labelFormat": "%N-%d",
-            "lastUsedControlPointNumber": 43,
+            "lastUsedControlPointNumber": 25,
             "controlPoints": [
                 {
                     "id": 1,
@@ -122,6 +122,28 @@
                 },
                 {
                     "id": 6,
+                    "label": "VB-SCI",
+                    "description": "Vertebral Body, superior endplate, central inferior-most dip",
+                    "associatedNodeID": "vtkMRMLScalarVolumeNode1",
+                    "position": [],
+                    "orientation": [
+                        -1.0,
+                        -0.0,
+                        -0.0,
+                        -0.0,
+                        -1.0,
+                        -0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "selected": true,
+                    "locked": false,
+                    "visibility": true,
+                    "positionStatus": "undefined"
+                },
+                {
+                    "id": 7,
                     "label": "VB-IL",
                     "description": "Vertebral Body, inferior endplate, left-most",
                     "associatedNodeID": "",
@@ -143,7 +165,7 @@
                     "positionStatus": "undefined"
                 },
                 {
-                    "id": 7,
+                    "id": 8,
                     "label": "VB-IA",
                     "description": "Vertebral Body, inferior endplate, anterior-most",
                     "associatedNodeID": "",
@@ -165,7 +187,7 @@
                     "positionStatus": "undefined"
                 },
                 {
-                    "id": 8,
+                    "id": 9,
                     "label": "VB-IR",
                     "description": "Vertebral Body, inferior endplate, right-most",
                     "associatedNodeID": "",
@@ -187,7 +209,7 @@
                     "positionStatus": "undefined"
                 },
                 {
-                    "id": 9,
+                    "id": 10,
                     "label": "VB-IPR",
                     "description": "Vertebral Body, inferior endplate to right pedicle onset",
                     "associatedNodeID": "",
@@ -209,7 +231,7 @@
                     "positionStatus": "undefined"
                 },
                 {
-                    "id": 10,
+                    "id": 11,
                     "label": "VB-IPL",
                     "description": "Vertebral Body, inferior endplate to left pedicle onset",
                     "associatedNodeID": "",
@@ -231,53 +253,9 @@
                     "positionStatus": "undefined"
                 },
                 {
-                    "id": 11,
-                    "label": "LP-I",
-                    "description": "Left Pedicle, inferior saddle point",
-                    "associatedNodeID": "",
-                    "position": [],
-                    "orientation": [
-                        -1.0,
-                        -0.0,
-                        -0.0,
-                        -0.0,
-                        -1.0,
-                        -0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "selected": true,
-                    "locked": false,
-                    "visibility": true,
-                    "positionStatus": "undefined"
-                },
-                {
                     "id": 12,
-                    "label": "LP-L",
-                    "description": "Left Pedicle, left-most",
-                    "associatedNodeID": "",
-                    "position": [],
-                    "orientation": [
-                        -1.0,
-                        -0.0,
-                        -0.0,
-                        -0.0,
-                        -1.0,
-                        -0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "selected": true,
-                    "locked": false,
-                    "visibility": true,
-                    "positionStatus": "undefined"
-                },
-                {
-                    "id": 13,
-                    "label": "LP-S",
-                    "description": "Left Pedicle, superior-most",
+                    "label": "VB-ICS",
+                    "description": "Vertebral Body, inferior endplate, central superior-most dip",
                     "associatedNodeID": "vtkMRMLScalarVolumeNode1",
                     "position": [],
                     "orientation": [
@@ -297,9 +275,31 @@
                     "positionStatus": "undefined"
                 },
                 {
+                    "id": 13,
+                    "label": "LP-I",
+                    "description": "Left Pedicle, cross-section, inferior",
+                    "associatedNodeID": "",
+                    "position": [],
+                    "orientation": [
+                        -1.0,
+                        -0.0,
+                        -0.0,
+                        -0.0,
+                        -1.0,
+                        -0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "selected": true,
+                    "locked": false,
+                    "visibility": true,
+                    "positionStatus": "undefined"
+                },
+                {
                     "id": 14,
-                    "label": "LP-R",
-                    "description": "Left Pedicle, right-most",
+                    "label": "LP-L",
+                    "description": "Left Pedicle, cross-section, left",
                     "associatedNodeID": "",
                     "position": [],
                     "orientation": [
@@ -320,9 +320,9 @@
                 },
                 {
                     "id": 15,
-                    "label": "RP-R",
-                    "description": "Right Pedicle, right-most",
-                    "associatedNodeID": "",
+                    "label": "LP-S",
+                    "description": "Left Pedicle, cross-section, superior",
+                    "associatedNodeID": "vtkMRMLScalarVolumeNode1",
                     "position": [],
                     "orientation": [
                         -1.0,
@@ -342,8 +342,8 @@
                 },
                 {
                     "id": 16,
-                    "label": "RP-I",
-                    "description": "Right Pedicle, inferior-most",
+                    "label": "LP-R",
+                    "description": "Left Pedicle, cross-section, right",
                     "associatedNodeID": "",
                     "position": [],
                     "orientation": [
@@ -364,8 +364,8 @@
                 },
                 {
                     "id": 17,
-                    "label": "RP-L",
-                    "description": "Right Pedicle, left-most",
+                    "label": "RP-R",
+                    "description": "Right Pedicle, cross-section, right",
                     "associatedNodeID": "",
                     "position": [],
                     "orientation": [
@@ -386,8 +386,8 @@
                 },
                 {
                     "id": 18,
-                    "label": "RP-S",
-                    "description": "Right Pedicle, superior-most",
+                    "label": "RP-I",
+                    "description": "Right Pedicle, cross-section, inferior",
                     "associatedNodeID": "",
                     "position": [],
                     "orientation": [
@@ -408,6 +408,50 @@
                 },
                 {
                     "id": 19,
+                    "label": "RP-L",
+                    "description": "Right Pedicle, cross-section, left",
+                    "associatedNodeID": "",
+                    "position": [],
+                    "orientation": [
+                        -1.0,
+                        -0.0,
+                        -0.0,
+                        -0.0,
+                        -1.0,
+                        -0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "selected": true,
+                    "locked": false,
+                    "visibility": true,
+                    "positionStatus": "undefined"
+                },
+                {
+                    "id": 20,
+                    "label": "RP-S",
+                    "description": "Right Pedicle, cross-section, superior",
+                    "associatedNodeID": "",
+                    "position": [],
+                    "orientation": [
+                        -1.0,
+                        -0.0,
+                        -0.0,
+                        -0.0,
+                        -1.0,
+                        -0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "selected": true,
+                    "locked": false,
+                    "visibility": true,
+                    "positionStatus": "undefined"
+                },
+                {
+                    "id": 21,
                     "label": "L-AP-SS",
                     "description": "Left Superior Articular Process, superior-most",
                     "associatedNodeID": "vtkMRMLScalarVolumeNode1",
@@ -429,7 +473,7 @@
                     "positionStatus": "undefined"
                 },
                 {
-                    "id": 20,
+                    "id": 22,
                     "label": "R-AP-SS",
                     "description": "Right Superior Articular Process, superior-most",
                     "associatedNodeID": "",
@@ -451,51 +495,51 @@
                     "positionStatus": "undefined"
                 },
                 {
-                    "id": 21,
-                    "label": "L-AP-IS",
-                    "description": "Left Inferior Articular Process, posterior saddle point",
-                    "associatedNodeID": "",
-                    "position": [],
-                    "orientation": [
-                        -1.0,
-                        -0.0,
-                        -0.0,
-                        -0.0,
-                        -1.0,
-                        -0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "selected": true,
-                    "locked": false,
-                    "visibility": true,
-                    "positionStatus": "undefined"
-                },
-                {
-                    "id": 22,
-                    "label": "R-AP-IS",
-                    "description": "Right Inferior Articular Process, posterior saddle point",
-                    "associatedNodeID": "",
-                    "position": [],
-                    "orientation": [
-                        -1.0,
-                        -0.0,
-                        -0.0,
-                        -0.0,
-                        -1.0,
-                        -0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "selected": true,
-                    "locked": false,
-                    "visibility": true,
-                    "positionStatus": "undefined"
-                },
-                {
                     "id": 23,
+                    "label": "L-AP-IS",
+                    "description": "Left Inferior Articular Process, anterior elbow",
+                    "associatedNodeID": "",
+                    "position": [],
+                    "orientation": [
+                        -1.0,
+                        -0.0,
+                        -0.0,
+                        -0.0,
+                        -1.0,
+                        -0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "selected": true,
+                    "locked": false,
+                    "visibility": true,
+                    "positionStatus": "undefined"
+                },
+                {
+                    "id": 24,
+                    "label": "R-AP-IS",
+                    "description": "Right Inferior Articular Process, anterior elbow",
+                    "associatedNodeID": "",
+                    "position": [],
+                    "orientation": [
+                        -1.0,
+                        -0.0,
+                        -0.0,
+                        -0.0,
+                        -1.0,
+                        -0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "selected": true,
+                    "locked": false,
+                    "visibility": true,
+                    "positionStatus": "undefined"
+                },
+                {
+                    "id": 25,
                     "label": "SP-P",
                     "description": "Spinous Process, posterior-most",
                     "associatedNodeID": "",
